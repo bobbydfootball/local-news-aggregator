@@ -16,12 +16,14 @@ Usage: python -m src.ingest
 
 import feedparser
 import requests
+import time
 from datetime import datetime, timezone
 from time import mktime
 from src.db import get_conn, init_db
 
 USER_AGENT = "LocalNewsAggregator/0.1 (+contact: you@example.com)"
 MAX_SUMMARY_CHARS = 400
+DELAY_BETWEEN_REQUESTS_SECONDS = 2
 
 
 def run_ingest():
@@ -44,6 +46,7 @@ def run_ingest():
                     "UPDATE sources SET last_error = ?, last_fetched_at = ? WHERE id = ?",
                     (str(e), datetime.now(timezone.utc).isoformat(), source["id"]),
                 )
+        time.sleep(DELAY_BETWEEN_REQUESTS_SECONDS)
 
     print(f"\nDone. {total_new} new article(s) across {len(sources)} source(s).")
 
