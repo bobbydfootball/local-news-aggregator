@@ -38,3 +38,41 @@ news_types:
 # Still used as the second-level grouping within each news type above --
 # e.g. the "Waukesha" category groups its articles into City of Waukesha /
 # Waukesha County sub-sections; "Sports" groups into City of Waukesha
+# (Freeman PREP) vs Wisconsin (pro/college teams).
+regions:
+  - slug: waukesha-city
+    name: "City of Waukesha"
+    level: city
+    parent_slug: waukesha-county
+    sort_order: 1
+  - slug: waukesha-county
+    name: "Waukesha County"
+    level: county
+    parent_slug: wisconsin
+    sort_order: 2
+  - slug: milwaukee-county
+    name: "Milwaukee County"
+    level: county
+    parent_slug: wisconsin
+    sort_order: 3
+  - slug: wisconsin
+    name: "Wisconsin (Statewide)"
+    level: state
+    parent_slug: null
+    sort_order: 4
+
+# Sports uses a separate axis (local team vs. state pro/college team)
+# rather than the geography hierarchy above.
+sports_scopes:
+  - slug: local_teams
+    name: "Local Teams"
+    sort_order: 1
+  - slug: state_teams
+    name: "State Pro & College Teams"
+    sort_order: 2
+
+state_teams:
+  - "Milwaukee Brewers"
+  - "Milwaukee Bucks"
+  - "Green Bay Packers"
+  - "Wisconsin Badgers"
