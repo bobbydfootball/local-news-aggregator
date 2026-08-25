@@ -19,7 +19,7 @@ sources:
   # --- Waukesha / Waukesha County ---
   - name: "Waukesha Freeman (GMToday)"
     base_url: "https://www.gmtoday.com/the_freeman/"
-    feed_url: "https://www.gmtoday.com/the_freeman/rss/"   # returned HTTP 429 - retry, may be transient rate limiting
+    feed_url: "https://www.gmtoday.com/search/?f=rss&t=article&c=the_freeman&l=50&s=start_time&sd=desc"   # VERIFY - BLOX CMS pattern, replaces dead /rss/ guess
     default_region: waukesha-city
     default_news_types: [politics, community, public_safety]
 
@@ -29,17 +29,10 @@ sources:
     default_region: waukesha-county
     default_news_types: [politics, community]
 
-  - name: "Lake Country Now"
-    base_url: "https://www.lakecountrynow.com/"
-    feed_url: "https://www.lakecountrynow.com/feed/"   # VERIFY - Gannett/USA Today Network, same family that blocked MJS
-    default_region: waukesha-county
-    default_news_types: [community]
-
-  - name: "MyCommunityNOW Hub"
-    base_url: "https://www.mycommunitynow.com/"
-    feed_url: "https://www.mycommunitynow.com/feed/"   # VERIFY - Journal Communications, untested network
-    default_region: milwaukee-county
-    default_news_types: [community]
+  # Lake Country Now and MyCommunityNOW Hub removed: Lake Country Now
+  # returned HTTP 402 (same Gannett-network blocking as MJS and Bucks Wire);
+  # MyCommunityNOW's domain no longer resolves at all (likely retired/folded
+  # into another Gannett property).
 
   # --- Milwaukee County ---
   # Milwaukee Journal Sentinel intentionally omitted: both the guessed
@@ -73,21 +66,14 @@ sources:
     default_region: wisconsin
     default_news_types: [politics, state_general]
 
-  - name: "MacIver Institute"
-    base_url: "https://www.maciverinstitute.com/"
-    feed_url: "https://www.maciverinstitute.com/feed/"   # VERIFY
-    default_region: wisconsin
-    default_news_types: [politics, state_general]
+  # MacIver Institute removed: HTTP 403, actively blocking automated requests.
+  # Empower Wisconsin removed: feed parses but returns 0 entries, and
+  # independent media-monitoring data suggests the outlet has published
+  # very little in recent months -- not a URL problem, just low output.
 
   - name: "Wisconsin Right Now"
     base_url: "https://www.wisconsinrightnow.com/"
     feed_url: "https://www.wisconsinrightnow.com/feed/"   # VERIFY
-    default_region: wisconsin
-    default_news_types: [politics, state_general]
-
-  - name: "Empower Wisconsin"
-    base_url: "https://www.empowerwisconsin.org/"
-    feed_url: "https://www.empowerwisconsin.org/feed/"   # VERIFY
     default_region: wisconsin
     default_news_types: [politics, state_general]
 
@@ -107,28 +93,14 @@ sources:
 
   - name: "Milwaukee Brewers - MLB Trade Rumors"
     base_url: "https://www.mlbtraderumors.com/milwaukee-brewers/"
-    feed_url: "https://www.mlbtraderumors.com/milwaukee-brewers/feed"   # VERIFY - official MLB.com feed returned 404
+    feed_url: "https://www.mlbtraderumors.com/milwaukee-brewers/feed"
     default_region: wisconsin
     default_news_types: [sports]
     sports_scope: state_teams
 
-  - name: "Milwaukee Bucks - Bucks Wire"
-    base_url: "https://bucksswire.usatoday.com/"
-    feed_url: "https://bucksswire.usatoday.com/feed/"   # VERIFY - USA Today Wire Network, same family that blocked MJS
-    default_region: wisconsin
-    default_news_types: [sports]
-    sports_scope: state_teams
+  # Milwaukee Bucks - Bucks Wire removed: HTTP 402, same Gannett/USA Today
+  # Wire Network blocking pattern as MJS and Lake Country Now. No confirmed
+  # working Bucks feed found yet -- Milwaukee Bucks coverage is currently a
+  # gap, worth revisiting with a non-Gannett source.
 
   - name: "Wisconsin Badgers Football (Official)"
-    base_url: "https://uwbadgers.com/sports/football"
-    feed_url: "https://uwbadgers.com/rss?path=football"
-    default_region: wisconsin
-    default_news_types: [sports]
-    sports_scope: state_teams
-
-  - name: "Wisconsin Badgers Men's Basketball (Official)"
-    base_url: "https://uwbadgers.com/sports/mens-basketball"
-    feed_url: "https://uwbadgers.com/rss?path=mbball"
-    default_region: wisconsin
-    default_news_types: [sports]
-    sports_scope: state_teams
