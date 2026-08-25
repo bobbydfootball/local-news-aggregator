@@ -39,12 +39,6 @@ sources:
     default_news_types: [politics, community]
 
   # --- Milwaukee County ---
-  - name: "WISN 12 News"
-    base_url: "https://www.wisn.com/"
-    feed_url: "https://www.wisn.com/topstories-rss"
-    default_region: milwaukee-county
-    default_news_types: [politics, community, public_safety]
-
   - name: "CBS58 Milwaukee"
     base_url: "https://www.cbs58.com/"
     feed_url: "https://www.cbs58.com/rss"
@@ -90,9 +84,9 @@ sources:
     default_news_types: [sports]
     sports_scope: state_teams
 
-  - name: "Milwaukee Brewers - MLB Trade Rumors"
-    base_url: "https://www.mlbtraderumors.com/milwaukee-brewers/"
-    feed_url: "https://www.mlbtraderumors.com/milwaukee-brewers/feed"
+  - name: "Milwaukee Brewers (Official)"
+    base_url: "https://www.mlb.com/brewers"
+    feed_url: "https://www.mlb.com/brewers/feeds/news/rss.xml"
     default_region: wisconsin
     default_news_types: [sports]
     sports_scope: state_teams
@@ -143,13 +137,6 @@ sources:
   - name: "Wisconsin Badgers Volleyball (Official)"
     base_url: "https://uwbadgers.com/sports/womens-volleyball"
     feed_url: "https://uwbadgers.com/rss?path=wvball"
-    default_region: wisconsin
-    default_news_types: [sports]
-    sports_scope: state_teams
-
-  - name: "Wisconsin Badgers Wrestling (Official)"
-    base_url: "https://uwbadgers.com/sports/wrestling"
-    feed_url: "https://uwbadgers.com/rss?path=wrestling"
     default_region: wisconsin
     default_news_types: [sports]
     sports_scope: state_teams
