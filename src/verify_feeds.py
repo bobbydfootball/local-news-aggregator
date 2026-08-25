@@ -13,7 +13,7 @@ from src.db import get_conn, init_db
 from src.load_config import load_taxonomy, load_sources
 
 USER_AGENT = "LocalNewsAggregator/0.1 (+contact: you@example.com)"
-DELAY_BETWEEN_REQUESTS_SECONDS = 2
+DELAY_BETWEEN_REQUESTS_SECONDS = 6
 
 
 def verify_all():
