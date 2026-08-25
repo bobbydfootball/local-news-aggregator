@@ -17,6 +17,12 @@
 # default_news_types. This is how Freeman's single combined feed splits
 # into "Waukesha" (everything else) and "Sports" (PREP-tagged articles)
 # without a second network request.
+#
+# `exclude_keywords` (optional): if a feed's title+summary contains any of
+# these, the article is treated as wire-service content (e.g. AP stories
+# syndicated on a local paper's site) and reclassified in ingest.py --
+# sports-flavored wire content goes to Sports, everything else goes to
+# State -- instead of being dropped or mis-tagged as hyperlocal content.
 
 sources:
   # --- Waukesha (City + County together) ---
@@ -27,6 +33,7 @@ sources:
     default_news_types: [waukesha]
     sports_keyword: "PREP"
     sports_keyword_scope: local_teams
+    exclude_keywords: ["(AP)", "Associated Press"]
 
   - name: "Wisconsin Newspaper Association Wire"
     base_url: "https://www.wnanews.com/"
