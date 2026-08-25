@@ -6,7 +6,10 @@ Run: streamlit run app.py
 """
 
 import streamlit as st
+from datetime import datetime, timedelta, timezone
 from src.db import get_conn, init_db
+
+MAX_ARTICLE_AGE_DAYS = 2
 
 st.set_page_config(page_title="Waukesha Area News", page_icon="📰", layout="wide")
 
@@ -83,6 +86,14 @@ def load_regions():
 
 @st.cache_data(ttl=300)
 def load_articles(news_type_slug: str):
+    # Only show articles published within the last MAX_ARTICLE_AGE_DAYS.
+    # Cutoff is computed in Python (not SQLite's datetime()) and compared
+    # as an ISO8601 string -- this format sorts/compares correctly as plain
+    # text as long as both sides use the same representation, which avoids
+    # relying on SQLite's own date-parsing quirks. Articles with no
+    # published_at (a feed that didn't provide one) are naturally excluded,
+    # since a NULL comparison against >= never evaluates true in SQL.
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=MAX_ARTICLE_AGE_DAYS)).isoformat()
     with get_conn() as conn:
         rows = conn.execute(
             """
@@ -92,14 +103,13 @@ def load_articles(news_type_slug: str):
             JOIN article_news_types ant ON ant.article_id = a.id
             JOIN sources s ON s.id = a.source_id
             LEFT JOIN article_regions ar ON ar.article_id = a.id
-            WHERE ant.news_type_slug = ?
+            WHERE ant.news_type_slug = ? AND a.published_at >= ?
             ORDER BY a.published_at DESC
             LIMIT 200
             """,
-            (news_type_slug,),
+            (news_type_slug, cutoff),
         ).fetchall()
         return [dict(r) for r in rows]
-
 
 def render_article_card(article):
     cols = st.columns([1, 4]) if article["image_url"] else [st.container()]
