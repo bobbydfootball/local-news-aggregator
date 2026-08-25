@@ -46,14 +46,21 @@ def load_sources():
     with open(CONFIG_DIR / "sources.yaml") as f:
         sources = yaml.safe_load(f)["sources"]
 
+    current_feed_urls = [s["feed_url"] for s in sources]
+
     with get_conn() as conn:
         for s in sources:
+            # Reset status to 'active' here so a source that comes back into
+            # sources.yaml after being removed gets re-checked fresh by
+            # verify_feeds, rather than staying stuck on whatever status it
+            # had before it was removed.
             cur = conn.execute(
                 """INSERT INTO sources (name, base_url, feed_url, default_region, sports_scope, status)
                    VALUES (?, ?, ?, ?, ?, 'active')
                    ON CONFLICT(feed_url) DO UPDATE SET
                      name=excluded.name, base_url=excluded.base_url,
-                     default_region=excluded.default_region, sports_scope=excluded.sports_scope
+                     default_region=excluded.default_region, sports_scope=excluded.sports_scope,
+                     status='active'
                    """,
                 (s["name"], s.get("base_url"), s["feed_url"], s["default_region"], s.get("sports_scope")),
             )
@@ -67,6 +74,17 @@ def load_sources():
                     "INSERT INTO source_news_types (source_id, news_type_slug) VALUES (?, ?)",
                     (source_id, nt_slug),
                 )
+
+        # Anything in the DB whose feed_url is no longer in sources.yaml was
+        # deliberately removed by editing the config -- mark it 'removed' so
+        # verify_feeds and the app stop surfacing it. We don't hard-delete
+        # the row because articles.source_id may still reference it.
+        if current_feed_urls:
+            placeholders = ",".join("?" for _ in current_feed_urls)
+            conn.execute(
+                f"UPDATE sources SET status = 'removed' WHERE feed_url NOT IN ({placeholders})",
+                current_feed_urls,
+            )
 
     return sources
 
