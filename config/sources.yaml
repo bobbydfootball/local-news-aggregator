@@ -29,6 +29,18 @@ sources:
     default_region: waukesha-county
     default_news_types: [politics, community]
 
+  - name: "Lake Country Now"
+    base_url: "https://www.lakecountrynow.com/"
+    feed_url: "https://www.lakecountrynow.com/feed/"   # VERIFY - Gannett/USA Today Network, same family that blocked MJS
+    default_region: waukesha-county
+    default_news_types: [community]
+
+  - name: "MyCommunityNOW Hub"
+    base_url: "https://www.mycommunitynow.com/"
+    feed_url: "https://www.mycommunitynow.com/feed/"   # VERIFY - Journal Communications, untested network
+    default_region: milwaukee-county
+    default_news_types: [community]
+
   # --- Milwaukee County ---
   # Milwaukee Journal Sentinel intentionally omitted: both the guessed
   # subdomain and the confirmed Arc XP outbound-feeds URL returned HTTP 402
@@ -61,6 +73,30 @@ sources:
     default_region: wisconsin
     default_news_types: [politics, state_general]
 
+  - name: "MacIver Institute"
+    base_url: "https://www.maciverinstitute.com/"
+    feed_url: "https://www.maciverinstitute.com/feed/"   # VERIFY
+    default_region: wisconsin
+    default_news_types: [politics, state_general]
+
+  - name: "Wisconsin Right Now"
+    base_url: "https://www.wisconsinrightnow.com/"
+    feed_url: "https://www.wisconsinrightnow.com/feed/"   # VERIFY
+    default_region: wisconsin
+    default_news_types: [politics, state_general]
+
+  - name: "Empower Wisconsin"
+    base_url: "https://www.empowerwisconsin.org/"
+    feed_url: "https://www.empowerwisconsin.org/feed/"   # VERIFY
+    default_region: wisconsin
+    default_news_types: [politics, state_general]
+
+  - name: "Badger Institute"
+    base_url: "https://www.badgerinstitute.org/"
+    feed_url: "https://www.badgerinstitute.org/feed/"   # VERIFY
+    default_region: wisconsin
+    default_news_types: [politics, state_general]
+
   # --- State sports teams (official/reliable team-specific feeds) ---
   - name: "Green Bay Packers (Official)"
     base_url: "https://www.packers.com/"
@@ -72,6 +108,27 @@ sources:
   - name: "Milwaukee Brewers - MLB Trade Rumors"
     base_url: "https://www.mlbtraderumors.com/milwaukee-brewers/"
     feed_url: "https://www.mlbtraderumors.com/milwaukee-brewers/feed"   # VERIFY - official MLB.com feed returned 404
+    default_region: wisconsin
+    default_news_types: [sports]
+    sports_scope: state_teams
+
+  - name: "Milwaukee Bucks - Bucks Wire"
+    base_url: "https://bucksswire.usatoday.com/"
+    feed_url: "https://bucksswire.usatoday.com/feed/"   # VERIFY - USA Today Wire Network, same family that blocked MJS
+    default_region: wisconsin
+    default_news_types: [sports]
+    sports_scope: state_teams
+
+  - name: "Wisconsin Badgers Football (Official)"
+    base_url: "https://uwbadgers.com/sports/football"
+    feed_url: "https://uwbadgers.com/rss?path=football"
+    default_region: wisconsin
+    default_news_types: [sports]
+    sports_scope: state_teams
+
+  - name: "Wisconsin Badgers Men's Basketball (Official)"
+    base_url: "https://uwbadgers.com/sports/mens-basketball"
+    feed_url: "https://uwbadgers.com/rss?path=mbball"
     default_region: wisconsin
     default_news_types: [sports]
     sports_scope: state_teams
