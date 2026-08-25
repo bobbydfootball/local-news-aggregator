@@ -23,7 +23,7 @@ from src.db import get_conn, init_db
 
 USER_AGENT = "LocalNewsAggregator/0.1 (+contact: you@example.com)"
 MAX_SUMMARY_CHARS = 400
-DELAY_BETWEEN_REQUESTS_SECONDS = 2
+DELAY_BETWEEN_REQUESTS_SECONDS = 6
 
 
 def run_ingest():
