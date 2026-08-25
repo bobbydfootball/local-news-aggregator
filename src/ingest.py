@@ -27,12 +27,27 @@ DELAY_BETWEEN_REQUESTS_SECONDS = 6
 MAX_RETRIES_ON_429 = 2
 RETRY_BACKOFF_SECONDS = 20
 
+# When a source's exclude_keywords match (e.g. "(AP)" marking wire-service
+# content on a local paper's site), the article isn't dropped -- it's
+# reclassified. If it also looks sports-related, it goes to Sports;
+# otherwise it goes to State (defined as non-political general interest,
+# a real home for wire content that isn't hyperlocal). This list is a
+# heuristic, not exhaustive -- same trade-off as the PREP keyword rule.
+WIRE_SPORTS_KEYWORDS = [
+    "baseball", "basketball", "football", "hockey", "soccer", "golf",
+    "tennis", "volleyball", "wrestling", "olympic", "nba", "nfl", "mlb",
+    "nhl", "ncaa", "world series", "super bowl", "stanley cup", "playoff",
+    "championship", "brewers", "packers", "bucks", "badgers",
+]
+WIRE_FALLBACK_NEWS_TYPE = "state"
+WIRE_SPORTS_NEWS_TYPE = "sports"
+
 
 def run_ingest():
     init_db()
     with get_conn() as conn:
         sources = conn.execute(
-            "SELECT id, name, feed_url, default_region, sports_scope, sports_keyword, sports_keyword_scope FROM sources WHERE status = 'active'"
+            "SELECT id, name, feed_url, default_region, sports_scope, sports_keyword, sports_keyword_scope, exclude_keywords FROM sources WHERE status = 'active'"
         ).fetchall()
 
     total_new = 0
@@ -85,12 +100,25 @@ def ingest_source(source) -> int:
         ]
 
     new_count = 0
+    exclude_keywords = source["exclude_keywords"].split("|") if source["exclude_keywords"] else []
+
     with get_conn() as conn:
         for entry in parsed.entries:
             url = entry.get("link")
             title = entry.get("title")
             if not url or not title:
                 continue
+
+            # Wire-service content (e.g. AP stories syndicated on a local
+            # paper's site alongside their own reporting) is kept, not
+            # dropped -- it's genuinely good content, it just doesn't belong
+            # under this source's normal default_news_types (a hyperlocal
+            # category). It gets reclassified instead: sports-flavored wire
+            # content -> Sports, everything else wire -> State.
+            raw_summary = entry.get("summary", "")
+            combined_text = f"{title} {raw_summary}".lower()
+            is_wire = any(kw.lower() in combined_text for kw in exclude_keywords)
+            wire_is_sports = is_wire and any(kw in combined_text for kw in WIRE_SPORTS_KEYWORDS)
 
             existing = conn.execute("SELECT id FROM articles WHERE url = ?", (url,)).fetchone()
             if existing:
@@ -117,10 +145,7 @@ def ingest_source(source) -> int:
             # default_news_types or default_region changes, previously-
             # ingested articles get correctly re-tagged on the next run
             # instead of keeping stale tags from whatever config was active
-            # when they were first inserted. (This is what caused sports
-            # articles to "sprinkle" into non-sports sections, and region
-            # sub-groupings to look broken, after several rounds of
-            # taxonomy/source changes -- old tags never got refreshed.)
+            # when they were first inserted.
             conn.execute("DELETE FROM article_news_types WHERE article_id = ?", (article_id,))
             conn.execute("DELETE FROM article_regions WHERE article_id = ?", (article_id,))
 
@@ -128,9 +153,17 @@ def ingest_source(source) -> int:
                 source["sports_keyword"] and source["sports_keyword"].lower() in title.lower()
             )
             if title_matches_sports_keyword:
+                # Local prep sports (e.g. GMToday's "PREP" prefix) takes
+                # priority over wire detection.
                 conn.execute(
                     "INSERT OR IGNORE INTO article_news_types (article_id, news_type_slug) VALUES (?, ?)",
                     (article_id, "sports"),
+                )
+            elif is_wire:
+                target_type = WIRE_SPORTS_NEWS_TYPE if wire_is_sports else WIRE_FALLBACK_NEWS_TYPE
+                conn.execute(
+                    "INSERT OR IGNORE INTO article_news_types (article_id, news_type_slug) VALUES (?, ?)",
+                    (article_id, target_type),
                 )
             else:
                 for nt_slug in news_types:
