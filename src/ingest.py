@@ -30,7 +30,7 @@ def run_ingest():
     init_db()
     with get_conn() as conn:
         sources = conn.execute(
-            "SELECT id, name, feed_url, default_region, sports_scope FROM sources WHERE status = 'active'"
+            "SELECT id, name, feed_url, default_region, sports_scope, sports_keyword, sports_keyword_scope FROM sources WHERE status = 'active'"
         ).fetchall()
 
     total_new = 0
@@ -92,11 +92,27 @@ def ingest_source(source) -> int:
             )
             article_id = cur.lastrowid
 
-            for nt_slug in news_types:
+            # If this source has a sports_keyword configured (e.g. GMToday's
+            # "PREP" prefix on high school sports headlines) and this
+            # article's title matches, reclassify it as sports instead of
+            # applying the source's normal default_news_types. This gives
+            # real per-article classification for a source that only
+            # exposes one combined feed, instead of blanket-tagging every
+            # article from that feed with every one of the source's types.
+            title_matches_sports_keyword = (
+                source["sports_keyword"] and source["sports_keyword"].lower() in title.lower()
+            )
+            if title_matches_sports_keyword:
                 conn.execute(
                     "INSERT OR IGNORE INTO article_news_types (article_id, news_type_slug) VALUES (?, ?)",
-                    (article_id, nt_slug),
+                    (article_id, "sports"),
                 )
+            else:
+                for nt_slug in news_types:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO article_news_types (article_id, news_type_slug) VALUES (?, ?)",
+                        (article_id, nt_slug),
+                    )
             conn.execute(
                 "INSERT OR IGNORE INTO article_regions (article_id, region_slug) VALUES (?, ?)",
                 (article_id, source["default_region"]),
