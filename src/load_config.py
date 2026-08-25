@@ -16,6 +16,8 @@ def load_taxonomy():
     with open(CONFIG_DIR / "taxonomy.yaml") as f:
         taxonomy = yaml.safe_load(f)
 
+    current_news_type_slugs = [nt["slug"] for nt in taxonomy["news_types"]]
+
     with get_conn() as conn:
         for nt in taxonomy["news_types"]:
             conn.execute(
@@ -24,6 +26,31 @@ def load_taxonomy():
                    ON CONFLICT(slug) DO UPDATE SET
                      name=excluded.name, color=excluded.color, sort_order=excluded.sort_order""",
                 (nt["slug"], nt["name"], nt["color"], nt["sort_order"]),
+            )
+
+        # Remove news_types that were deleted/renamed out of taxonomy.yaml.
+        # Without this, old category rows (e.g. a category you renamed two
+        # versions ago) linger in the DB forever and the app shows a mix of
+        # every taxonomy version you've ever used -- this was a real bug
+        # that caused old section names to keep showing up after several
+        # rounds of category edits. article_news_types rows pointing at a
+        # removed category are deleted first (their articles just lose that
+        # tag -- if that was an article's only tag, it stops appearing
+        # anywhere, which is correct: it was tagged under a category that
+        # no longer exists).
+        if current_news_type_slugs:
+            placeholders = ",".join("?" for _ in current_news_type_slugs)
+            conn.execute(
+                f"DELETE FROM article_news_types WHERE news_type_slug NOT IN ({placeholders})",
+                current_news_type_slugs,
+            )
+            conn.execute(
+                f"DELETE FROM source_news_types WHERE news_type_slug NOT IN ({placeholders})",
+                current_news_type_slugs,
+            )
+            conn.execute(
+                f"DELETE FROM news_types WHERE slug NOT IN ({placeholders})",
+                current_news_type_slugs,
             )
 
         # Insert regions in dependency order (parents before children) --
