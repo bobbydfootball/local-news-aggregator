@@ -12,7 +12,7 @@ from src.db import get_conn, init_db
 
 MAX_ARTICLE_AGE_DAYS = 2
 
-st.set_page_config(page_title="Waukesha Area News", page_icon="📰", layout="wide")
+st.set_page_config(page_title="Bo6's News Aggregator", page_icon="📰", layout="wide")
 
 # ---------- Styling: white background, colorful accents ----------
 st.markdown(
@@ -121,7 +121,7 @@ def render_article_card(article):
 
 def main():
     init_db()
-    st.title("📰 Waukesha Area News")
+    st.title("📰 Bo6's News Aggregator")
     st.caption("Local news for Waukesha, Waukesha County, Milwaukee County & Wisconsin")
 
     news_types = load_news_types()
