@@ -7,11 +7,10 @@
 # single article never needs to appear in more than one section. Milwaukee
 # County content lives under "State" (no dedicated Milwaukee category).
 #
-# IMPORTANT: if you rename/remove a category here, old articles tagged with
-# the removed slug will NOT be cleaned up automatically (news_types rows
-# aren't auto-deleted the way sources.yaml removals are -- see
-# src/load_config.py). Delete data/news.db and let the next ingest rebuild
-# from scratch whenever you change this file's categories.
+# IMPORTANT: renaming/removing a category here now cleans up automatically
+# -- load_config.py deletes old news_types rows (and their article tags)
+# that are no longer in this file, the next time it runs. No manual
+# data/news.db deletion needed for category changes anymore.
 news_types:
   - slug: waukesha
     name: "Waukesha"
