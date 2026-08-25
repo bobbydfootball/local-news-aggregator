@@ -24,6 +24,8 @@ from src.db import get_conn, init_db
 USER_AGENT = "LocalNewsAggregator/0.1 (+contact: you@example.com)"
 MAX_SUMMARY_CHARS = 400
 DELAY_BETWEEN_REQUESTS_SECONDS = 6
+MAX_RETRIES_ON_429 = 2
+RETRY_BACKOFF_SECONDS = 20
 
 
 def run_ingest():
@@ -51,9 +53,26 @@ def run_ingest():
     print(f"\nDone. {total_new} new article(s) across {len(sources)} source(s).")
 
 
-def ingest_source(source) -> int:
-    resp = requests.get(source["feed_url"], headers={"User-Agent": USER_AGENT}, timeout=15)
+def fetch_with_retry(feed_url: str):
+    """Fetch a feed URL, retrying with backoff specifically on HTTP 429
+    (rate limited) -- some sources (GMToday) fail intermittently rather than
+    consistently, so a couple of retries within the same run meaningfully
+    improves the odds of success instead of just waiting for next hour's
+    scheduled run to get lucky. Other errors (404, etc.) fail immediately --
+    no point retrying a genuinely broken URL."""
+    resp = None
+    for attempt in range(MAX_RETRIES_ON_429 + 1):
+        resp = requests.get(feed_url, headers={"User-Agent": USER_AGENT}, timeout=15)
+        if resp.status_code == 429 and attempt < MAX_RETRIES_ON_429:
+            time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+            continue
+        break
     resp.raise_for_status()
+    return resp
+
+
+def ingest_source(source) -> int:
+    resp = fetch_with_retry(source["feed_url"])
     parsed = feedparser.parse(resp.content)
 
     with get_conn() as conn:
@@ -75,30 +94,36 @@ def ingest_source(source) -> int:
 
             existing = conn.execute("SELECT id FROM articles WHERE url = ?", (url,)).fetchone()
             if existing:
-                continue
+                article_id = existing["id"]
+            else:
+                summary = clean_summary(entry.get("summary", ""))
+                image_url = extract_image(entry)
+                published_at = extract_published(entry)
+                cur = conn.execute(
+                    """INSERT INTO articles
+                       (source_id, title, url, summary, image_url, published_at, fetched_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        source["id"], title, url, summary, image_url, published_at,
+                        datetime.now(timezone.utc).isoformat(),
+                    ),
+                )
+                article_id = cur.lastrowid
+                new_count += 1
 
-            summary = clean_summary(entry.get("summary", ""))
-            image_url = extract_image(entry)
-            published_at = extract_published(entry)
+            # Always recompute this article's category + region from the
+            # CURRENT source config, whether it's brand new or already
+            # existed. This makes the system self-healing: if sources.yaml's
+            # default_news_types or default_region changes, previously-
+            # ingested articles get correctly re-tagged on the next run
+            # instead of keeping stale tags from whatever config was active
+            # when they were first inserted. (This is what caused sports
+            # articles to "sprinkle" into non-sports sections, and region
+            # sub-groupings to look broken, after several rounds of
+            # taxonomy/source changes -- old tags never got refreshed.)
+            conn.execute("DELETE FROM article_news_types WHERE article_id = ?", (article_id,))
+            conn.execute("DELETE FROM article_regions WHERE article_id = ?", (article_id,))
 
-            cur = conn.execute(
-                """INSERT INTO articles
-                   (source_id, title, url, summary, image_url, published_at, fetched_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    source["id"], title, url, summary, image_url, published_at,
-                    datetime.now(timezone.utc).isoformat(),
-                ),
-            )
-            article_id = cur.lastrowid
-
-            # If this source has a sports_keyword configured (e.g. GMToday's
-            # "PREP" prefix on high school sports headlines) and this
-            # article's title matches, reclassify it as sports instead of
-            # applying the source's normal default_news_types. This gives
-            # real per-article classification for a source that only
-            # exposes one combined feed, instead of blanket-tagging every
-            # article from that feed with every one of the source's types.
             title_matches_sports_keyword = (
                 source["sports_keyword"] and source["sports_keyword"].lower() in title.lower()
             )
@@ -117,7 +142,6 @@ def ingest_source(source) -> int:
                 "INSERT OR IGNORE INTO article_regions (article_id, region_slug) VALUES (?, ?)",
                 (article_id, source["default_region"]),
             )
-            new_count += 1
 
         conn.execute(
             "UPDATE sources SET last_fetched_at = ?, last_error = NULL WHERE id = ?",
