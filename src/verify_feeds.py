@@ -20,7 +20,12 @@ def verify_all():
     load_sources()
 
     with get_conn() as conn:
-        rows = conn.execute("SELECT id, name, feed_url FROM sources").fetchall()
+        # Skip sources marked 'removed' (deleted from sources.yaml in a
+        # previous load_config run) -- no point re-checking feeds that are
+        # no longer part of the active configuration.
+        rows = conn.execute(
+            "SELECT id, name, feed_url FROM sources WHERE status != 'removed'"
+        ).fetchall()
 
     results = []
     for row in rows:
