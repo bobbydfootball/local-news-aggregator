@@ -1,0 +1,98 @@
+# Source registry.
+#
+# `feed_url` entries marked "VERIFY" were identified via web research but not
+# yet confirmed to be live, working RSS endpoints -- run
+# `python -m src.verify_feeds` before your first real ingest to check them
+# and flag anything dead or moved.
+#
+# `default_news_types` / `default_region` are applied to every article from
+# that feed unless the feed is split by topic (e.g. a paper that publishes
+# separate politics/sports feeds -- in that case, add one entry per feed).
+#
+# `sports_scope` only applies when a news type includes "sports".
+
+sources:
+  # --- Waukesha / Waukesha County ---
+  - name: "Waukesha Freeman (GMToday)"
+    base_url: "https://www.gmtoday.com/the_freeman/"
+    feed_url: "https://www.gmtoday.com/the_freeman/rss/"   # VERIFY
+    default_region: waukesha-city
+    default_news_types: [politics, community, public_safety]
+
+  - name: "Patch - Waukesha"
+    base_url: "https://patch.com/wisconsin/waukesha"
+    feed_url: "https://patch.com/wisconsin/waukesha/rss"   # VERIFY
+    default_region: waukesha-city
+    default_news_types: [community]
+
+  - name: "Wisconsin Newspaper Association Wire"
+    base_url: "https://www.wnanews.com/"
+    feed_url: "https://www.wnanews.com/feed"
+    default_region: waukesha-county
+    default_news_types: [politics, community]
+
+  # --- Milwaukee County ---
+  - name: "Milwaukee Journal Sentinel - Top Stories"
+    base_url: "https://www.jsonline.com/"
+    feed_url: "https://rssfeeds.jsonline.com/jsonline/news"  # VERIFY
+    default_region: milwaukee-county
+    default_news_types: [politics, community, public_safety]
+
+  - name: "Milwaukee Journal Sentinel - Sports"
+    base_url: "https://www.jsonline.com/sports/"
+    feed_url: "https://rssfeeds.jsonline.com/jsonline/sports"  # VERIFY
+    default_region: milwaukee-county
+    default_news_types: [sports]
+    sports_scope: state_teams
+
+  - name: "WISN 12 News"
+    base_url: "https://www.wisn.com/"
+    feed_url: "https://www.wisn.com/topstories-rss"
+    default_region: milwaukee-county
+    default_news_types: [politics, community, public_safety]
+
+  - name: "CBS58 Milwaukee"
+    base_url: "https://www.cbs58.com/"
+    feed_url: "https://www.cbs58.com/rss"   # VERIFY
+    default_region: milwaukee-county
+    default_news_types: [public_safety, politics]
+
+  - name: "Milwaukee Independent"
+    base_url: "https://www.milwaukeeindependent.com/"
+    feed_url: "https://www.milwaukeeindependent.com/feed/"   # VERIFY
+    default_region: milwaukee-county
+    default_news_types: [community]
+
+  # --- Statewide ---
+  - name: "Wisconsin Public Radio - Politics"
+    base_url: "https://www.wpr.org/"
+    feed_url: "http://feeds.wpr.org/wpr-politics"
+    default_region: wisconsin
+    default_news_types: [politics]
+
+  - name: "WisPolitics.com"
+    base_url: "https://www.wispolitics.com/"
+    feed_url: "https://www.wispolitics.com/feed/"
+    default_region: wisconsin
+    default_news_types: [politics]
+
+  - name: "Spectrum News 1 Wisconsin"
+    base_url: "https://spectrumnews1.com/wi/milwaukee"
+    feed_url: "https://spectrumnews1.com/wi/milwaukee/feed"   # VERIFY
+    default_region: wisconsin
+    default_news_types: [state_general, politics]
+
+  # --- State sports teams (statewide interest, not tied to one county) ---
+  - name: "ESPN - Milwaukee Brewers"
+    base_url: "https://www.espn.com/mlb/team/_/name/mil"
+    feed_url: "https://www.espn.com/espn/rss/mlb/news"   # VERIFY - filter by team keyword
+    default_region: wisconsin
+    default_news_types: [sports]
+    sports_scope: state_teams
+
+  - name: "ESPN - Green Bay Packers"
+    base_url: "https://www.espn.com/nfl/team/_/name/gb"
+    feed_url: "https://www.espn.com/espn/rss/nfl/news"    # VERIFY - filter by team keyword
+    default_region: wisconsin
+    default_news_types: [sports]
+    sports_scope: state_teams
