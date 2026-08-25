@@ -1,7 +1,8 @@
 """
 Streamlit frontend for the local news aggregator.
 
-Layout: News Type (top level) -> Geography (second level) -> article cards.
+Layout: News Type sections, flat article lists within each (no region
+sub-grouping -- see notes in main() for why that was removed).
 Run: streamlit run app.py
 """
 
@@ -26,13 +27,6 @@ st.markdown(
         font-size: 1.4rem;
         margin-top: 1.5rem;
         margin-bottom: 0.75rem;
-    }
-    .region-header {
-        font-weight: 600;
-        font-size: 1.05rem;
-        margin-top: 0.75rem;
-        margin-bottom: 0.5rem;
-        color: #374151;
     }
     .article-card {
         border: 1px solid #E5E7EB;
@@ -76,15 +70,6 @@ def load_news_types():
 
 
 @st.cache_data(ttl=300)
-def load_regions():
-    with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT slug, name, level, sort_order FROM regions ORDER BY sort_order"
-        ).fetchall()
-        return [dict(r) for r in rows]
-
-
-@st.cache_data(ttl=300)
 def load_articles(news_type_slug: str):
     # Only show articles published within the last MAX_ARTICLE_AGE_DAYS.
     # Cutoff is computed in Python (not SQLite's datetime()) and compared
@@ -110,6 +95,7 @@ def load_articles(news_type_slug: str):
             (news_type_slug, cutoff),
         ).fetchall()
         return [dict(r) for r in rows]
+
 
 def render_article_card(article):
     cols = st.columns([1, 4]) if article["image_url"] else [st.container()]
@@ -139,8 +125,6 @@ def main():
     st.caption("Local news for Waukesha, Waukesha County, Milwaukee County & Wisconsin")
 
     news_types = load_news_types()
-    regions = load_regions()
-    region_lookup = {r["slug"]: r for r in regions}
 
     if not news_types:
         st.warning(
@@ -156,24 +140,21 @@ def main():
         )
         articles = load_articles(nt["slug"])
         if not articles:
-            st.caption("No articles yet for this section.")
+            if nt["slug"] == "events":
+                st.caption("Coming soon — this section is a placeholder until concerts/festivals support is built.")
+            else:
+                st.caption("No articles yet for this section.")
             continue
 
-        # Group by region, in region sort order, then by recency within region
-        by_region = {}
-        for a in articles:
-            by_region.setdefault(a["region_slug"], []).append(a)
-
-        ordered_region_slugs = sorted(
-            by_region.keys(),
-            key=lambda s: region_lookup[s]["sort_order"] if s in region_lookup else 999,
-        )
-
-        for region_slug in ordered_region_slugs:
-            region_name = region_lookup.get(region_slug, {}).get("name", "Other")
-            st.markdown(f'<div class="region-header">{region_name}</div>', unsafe_allow_html=True)
-            for article in by_region[region_slug][:10]:
-                render_article_card(article)
+        # Flat list, most recent first -- no region sub-grouping. The
+        # region/county labels on articles weren't reliably matching their
+        # actual content (see project history), so rather than keep fixing
+        # per-source region tagging, the display was simplified to avoid
+        # showing a county label that might not be accurate. Region data
+        # is still stored (article_regions table) in case a more reliable
+        # grouping approach is worth revisiting later.
+        for article in articles[:20]:
+            render_article_card(article)
 
 
 if __name__ == "__main__":
