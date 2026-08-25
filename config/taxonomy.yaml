@@ -1,68 +1,40 @@
 # Top-level news types. `sort_order` controls display order in the app.
 # `color` is a hex value used for the Streamlit UI accent per section.
+#
+# This taxonomy mixes geographic categories (Waukesha) with topical
+# categories (Sports, State, Politics & Government, Events) by deliberate
+# choice -- Waukesha acts as an "everything local to Waukesha" bucket so a
+# single article never needs to appear in more than one section. Milwaukee
+# County content lives under "State" (no dedicated Milwaukee category).
+#
+# IMPORTANT: if you rename/remove a category here, old articles tagged with
+# the removed slug will NOT be cleaned up automatically (news_types rows
+# aren't auto-deleted the way sources.yaml removals are -- see
+# src/load_config.py). Delete data/news.db and let the next ingest rebuild
+# from scratch whenever you change this file's categories.
 news_types:
-  - slug: politics
-    name: "Politics & Government"
-    color: "#2563EB"      # blue
-    sort_order: 1
-  - slug: community
-    name: "Community & Events"
+  - slug: waukesha
+    name: "Waukesha"
     color: "#16A34A"       # green
-    sort_order: 2
-  - slug: public_safety
-    name: "Public Safety"
-    color: "#DC2626"       # red
-    sort_order: 3
+    sort_order: 1
   - slug: sports
     name: "Sports"
     color: "#EA580C"       # orange
-    sort_order: 4
-  - slug: state_general
-    name: "State & General Interest"
+    sort_order: 2
+  - slug: state
+    name: "State"
     color: "#7C3AED"       # purple
+    sort_order: 3
+  - slug: politics
+    name: "Politics & Government"
+    color: "#2563EB"       # blue
+    sort_order: 4
+  - slug: events
+    name: "Events"
+    color: "#6B7280"       # gray -- signals "placeholder, not live yet"
     sort_order: 5
 
 # Regions form a hierarchy: state > county > city.
-# `level` and `parent_slug` let the app nest/sort by geographic proximity.
-# To add a new area later (e.g. a second state or city), just add rows here
-# and matching entries in sources.yaml -- no code changes needed.
-regions:
-  - slug: waukesha-city
-    name: "City of Waukesha"
-    level: city
-    parent_slug: waukesha-county
-    sort_order: 1
-  - slug: waukesha-county
-    name: "Waukesha County"
-    level: county
-    parent_slug: wisconsin
-    sort_order: 2
-  - slug: milwaukee-county
-    name: "Milwaukee County"
-    level: county
-    parent_slug: wisconsin
-    sort_order: 3
-  - slug: wisconsin
-    name: "Wisconsin (Statewide)"
-    level: state
-    parent_slug: null
-    sort_order: 4
-
-# Sports uses a separate axis (local team vs. state pro/college team)
-# rather than the geography hierarchy above, since a Brewers story isn't
-# meaningfully "closer" to Waukesha than to Milwaukee.
-sports_scopes:
-  - slug: local_teams
-    name: "Local Teams"
-    sort_order: 1
-  - slug: state_teams
-    name: "State Pro & College Teams"
-    sort_order: 2
-
-# Named state teams, used to help tag/filter sports articles by keyword
-# matching during ingestion (see src/ingest.py TEAM_KEYWORDS).
-state_teams:
-  - "Milwaukee Brewers"
-  - "Milwaukee Bucks"
-  - "Green Bay Packers"
-  - "Wisconsin Badgers"
+# Still used as the second-level grouping within each news type above --
+# e.g. the "Waukesha" category groups its articles into City of Waukesha /
+# Waukesha County sub-sections; "Sports" groups into City of Waukesha
