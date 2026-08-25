@@ -8,10 +8,12 @@ Usage: python -m src.verify_feeds
 
 import feedparser
 import requests
+import time
 from src.db import get_conn, init_db
 from src.load_config import load_taxonomy, load_sources
 
 USER_AGENT = "LocalNewsAggregator/0.1 (+contact: you@example.com)"
+DELAY_BETWEEN_REQUESTS_SECONDS = 2
 
 
 def verify_all():
@@ -36,6 +38,7 @@ def verify_all():
                 "UPDATE sources SET status = ? WHERE id = ?",
                 (status, row["id"]),
             )
+        time.sleep(DELAY_BETWEEN_REQUESTS_SECONDS)
 
     print(f"{'STATUS':<12} {'SOURCE':<35} DETAIL")
     print("-" * 90)
