@@ -10,11 +10,17 @@
 # separate politics/sports feeds -- in that case, add one entry per feed).
 # NOTE: a source that covers multiple beats (e.g. a general newspaper) tags
 # EVERY article from that feed with ALL of its default_news_types -- there's
-# no per-article classification. That's why general-news sources and their
-# sports coverage are split into separate entries below, each with its own
-# feed_url, rather than one entry covering both.
+# no per-article classification, UNLESS `sports_keyword` is set (see below).
 #
 # `sports_scope` only applies when a news type includes "sports".
+#
+# `sports_keyword` / `sports_keyword_scope` (optional): if a feed's title
+# contains this keyword, that specific article is reclassified as sports
+# (with sports_keyword_scope) instead of getting this source's normal
+# default_news_types. Use this for a general-news source whose site prefixes
+# sports headlines a consistent way (e.g. GMToday's "PREP FOOTBALL: ...")
+# rather than making a second network request to a separate search URL,
+# which can trigger stricter bot/rate-limit protection on some sites.
 
 sources:
   # --- Waukesha / Waukesha County ---
@@ -23,13 +29,8 @@ sources:
     feed_url: "https://www.gmtoday.com/search/?f=rss&t=article&l=50&s=start_time&sd=desc"
     default_region: waukesha-city
     default_news_types: [politics, community, public_safety]
-
-  - name: "Waukesha Freeman (GMToday) - Prep Sports"
-    base_url: "https://www.gmtoday.com/the_freeman/"
-    feed_url: "https://www.gmtoday.com/search/?f=rss&t=article&q=PREP&l=50&s=start_time&sd=desc"
-    default_region: waukesha-city
-    default_news_types: [sports]
-    sports_scope: local_teams
+    sports_keyword: "PREP"
+    sports_keyword_scope: local_teams
 
   - name: "Wisconsin Newspaper Association Wire"
     base_url: "https://www.wnanews.com/"
