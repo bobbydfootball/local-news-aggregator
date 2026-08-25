@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS sources (
     sports_scope        TEXT,           -- local_teams / state_teams, nullable
     sports_keyword      TEXT,           -- optional: title keyword that reclassifies an article as sports instead of this source's default_news_types
     sports_keyword_scope TEXT,          -- local_teams / state_teams, used only for keyword-matched articles
+    exclude_keywords    TEXT,           -- optional: "|"-separated keywords; if title+summary contains any, the article is treated as wire-service content and reclassified (see WIRE_SPORTS_KEYWORDS in ingest.py) instead of using this source's default_news_types
     status              TEXT DEFAULT 'active',   -- active / dead / needs_review
     last_fetched_at     TEXT,
     last_error          TEXT
