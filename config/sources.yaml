@@ -5,30 +5,26 @@
 # `python -m src.verify_feeds` (via the GitHub Actions workflow) to check
 # them and flag anything dead or moved.
 #
-# `default_news_types` / `default_region` are applied to every article from
-# that feed unless the feed is split by topic (e.g. a paper that publishes
-# separate politics/sports feeds -- in that case, add one entry per feed).
-# NOTE: a source that covers multiple beats (e.g. a general newspaper) tags
-# EVERY article from that feed with ALL of its default_news_types -- there's
-# no per-article classification, UNLESS `sports_keyword` is set (see below).
+# `default_news_types` is now a SINGLE-item list for every source, by design
+# -- the taxonomy was restructured so every article resolves to exactly one
+# category (no more cross-listing/duplication across sections).
 #
-# `sports_scope` only applies when a news type includes "sports".
+# `sports_scope` only applies when the news type is "sports".
 #
 # `sports_keyword` / `sports_keyword_scope` (optional): if a feed's title
 # contains this keyword, that specific article is reclassified as sports
 # (with sports_keyword_scope) instead of getting this source's normal
-# default_news_types. Use this for a general-news source whose site prefixes
-# sports headlines a consistent way (e.g. GMToday's "PREP FOOTBALL: ...")
-# rather than making a second network request to a separate search URL,
-# which can trigger stricter bot/rate-limit protection on some sites.
+# default_news_types. This is how Freeman's single combined feed splits
+# into "Waukesha" (everything else) and "Sports" (PREP-tagged articles)
+# without a second network request.
 
 sources:
-  # --- Waukesha / Waukesha County ---
+  # --- Waukesha (City + County together) ---
   - name: "Waukesha Freeman (GMToday) - General"
     base_url: "https://www.gmtoday.com/the_freeman/"
     feed_url: "https://www.gmtoday.com/search/?f=rss&t=article&l=50&s=start_time&sd=desc"
     default_region: waukesha-city
-    default_news_types: [politics, community, public_safety]
+    default_news_types: [waukesha]
     sports_keyword: "PREP"
     sports_keyword_scope: local_teams
 
@@ -36,47 +32,47 @@ sources:
     base_url: "https://www.wnanews.com/"
     feed_url: "https://www.wnanews.com/feed"
     default_region: waukesha-county
-    default_news_types: [politics, community]
+    default_news_types: [waukesha]
 
-  # --- Milwaukee County ---
+  # --- State (Milwaukee County news + general statewide interest) ---
   - name: "CBS58 Milwaukee"
     base_url: "https://www.cbs58.com/"
     feed_url: "https://www.cbs58.com/rss"
     default_region: milwaukee-county
-    default_news_types: [public_safety, politics]
+    default_news_types: [state]
 
   - name: "Milwaukee Independent"
     base_url: "https://www.milwaukeeindependent.com/"
     feed_url: "https://www.milwaukeeindependent.com/feed/"
     default_region: milwaukee-county
-    default_news_types: [community]
+    default_news_types: [state]
 
-  # --- Statewide politics / general interest ---
+  # --- Politics & Government (statewide) ---
   - name: "Wisconsin Examiner"
     base_url: "https://wisconsinexaminer.com/"
     feed_url: "https://wisconsinexaminer.com/feed/"
     default_region: wisconsin
-    default_news_types: [politics, state_general]
+    default_news_types: [politics]
 
   - name: "Wisconsin Right Now"
     base_url: "https://www.wisconsinrightnow.com/"
     feed_url: "https://www.wisconsinrightnow.com/feed/"
     default_region: wisconsin
-    default_news_types: [politics, state_general]
+    default_news_types: [politics]
 
   - name: "Badger Institute"
     base_url: "https://www.badgerinstitute.org/"
     feed_url: "https://www.badgerinstitute.org/feed/"
     default_region: wisconsin
-    default_news_types: [politics, state_general]
+    default_news_types: [politics]
 
   - name: "The Heartland Post"
     base_url: "https://heartlandpost.com/"
     feed_url: "https://heartlandpost.com/feed/"
     default_region: wisconsin
-    default_news_types: [politics, state_general]
+    default_news_types: [politics]
 
-  # --- State pro teams ---
+  # --- Sports (state pro/college teams) ---
   - name: "Green Bay Packers (Official)"
     base_url: "https://www.packers.com/"
     feed_url: "https://www.packers.com/rss/news"
@@ -98,7 +94,6 @@ sources:
     default_news_types: [sports]
     sports_scope: state_teams
 
-  # --- Wisconsin Badgers (official athletics site, one feed per sport) ---
   - name: "Wisconsin Badgers Football (Official)"
     base_url: "https://uwbadgers.com/sports/football"
     feed_url: "https://uwbadgers.com/rss?path=football"
@@ -140,3 +135,12 @@ sources:
     default_region: wisconsin
     default_news_types: [sports]
     sports_scope: state_teams
+
+  # --- State (non-political general interest, beyond the Milwaukee sources
+  # already listed above): still no dedicated source for this -- everything
+  # else statewide in the roster is political commentary (see Politics &
+  # Government below). Open gap, ready to receive a source when one is found.
+
+  # --- Events ---
+  # Placeholder. See README "Phase 2" section -- Ticketmaster Discovery API
+  # is the planned path for concerts; no source added yet.
