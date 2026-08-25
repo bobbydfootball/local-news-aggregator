@@ -76,6 +76,12 @@ sources:
     default_region: wisconsin
     default_news_types: [politics, state_general]
 
+  - name: "The Heartland Post"
+    base_url: "https://heartlandpost.com/"
+    feed_url: "https://heartlandpost.com/feed/"
+    default_region: wisconsin
+    default_news_types: [politics, state_general]
+
   # --- State pro teams ---
   - name: "Green Bay Packers (Official)"
     base_url: "https://www.packers.com/"
