@@ -63,23 +63,28 @@ st.markdown(
 @st.cache_data(ttl=300)
 def load_news_types():
     with get_conn() as conn:
-        return conn.execute(
+        rows = conn.execute(
             "SELECT slug, name, color FROM news_types ORDER BY sort_order"
         ).fetchall()
+        # Convert sqlite3.Row -> plain dict. st.cache_data pickles whatever
+        # a cached function returns, and sqlite3.Row doesn't pickle reliably
+        # (this is what caused UnserializableReturnValueError on deploy).
+        return [dict(r) for r in rows]
 
 
 @st.cache_data(ttl=300)
 def load_regions():
     with get_conn() as conn:
-        return conn.execute(
+        rows = conn.execute(
             "SELECT slug, name, level, sort_order FROM regions ORDER BY sort_order"
         ).fetchall()
+        return [dict(r) for r in rows]
 
 
 @st.cache_data(ttl=300)
 def load_articles(news_type_slug: str):
     with get_conn() as conn:
-        return conn.execute(
+        rows = conn.execute(
             """
             SELECT a.id, a.title, a.url, a.summary, a.image_url, a.published_at,
                    s.name AS source_name, ar.region_slug
@@ -93,6 +98,7 @@ def load_articles(news_type_slug: str):
             """,
             (news_type_slug,),
         ).fetchall()
+        return [dict(r) for r in rows]
 
 
 def render_article_card(article):
