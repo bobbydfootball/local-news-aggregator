@@ -145,7 +145,23 @@ sources:
     sports_scope: state_teams
 
   # --- State (non-political general interest, beyond the Milwaukee sources
-  # already listed above): still no dedicated source for this -- everything
+   # --- Events ---
+  - name: "Shepherd Express - Live Music"
+    base_url: "https://shepherdexpress.com/search/event/live-music/"
+    feed_url: "https://shepherdexpress.com/search/event/live-music/index.rss"
+    default_region: milwaukee-county
+    default_news_types: [events]
+
+  - name: "Shepherd Express - Madcap Milwaukee Calendar"
+    base_url: "https://shepherdexpress.com/culture/madcap-milwaukee-calendar"
+    feed_url: "https://shepherdexpress.com/culture/madcap-milwaukee-calendar/index.rss"
+    default_region: milwaukee-county
+    default_news_types: [events]
+
+  # Still missing: Waukesha County-specific events/festivals, and the big
+  # statewide fairs (Wisconsin State Fair, county fairs) -- no programmatic
+  # source found for those despite extensive research. Concerts beyond
+  # Milwaukee could be added later via Ticketmaster/SeatGeek APIs if wanted.
   # else statewide in the roster is political commentary (see Politics &
   # Government below). Open gap, ready to receive a source when one is found.
 
