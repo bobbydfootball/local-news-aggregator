@@ -1,8 +1,7 @@
 """
 Streamlit frontend for the local news aggregator.
 
-Layout: News Type sections, flat article lists within each (no region
-sub-grouping -- see notes in main() for why that was removed).
+Layout: News Type (top level) -> Geography (second level) -> article cards.
 Run: streamlit run app.py
 """
 
@@ -27,6 +26,13 @@ st.markdown(
         font-size: 1.4rem;
         margin-top: 1.5rem;
         margin-bottom: 0.75rem;
+    }
+    .region-header {
+        font-weight: 600;
+        font-size: 1.05rem;
+        margin-top: 0.75rem;
+        margin-bottom: 0.5rem;
+        color: #374151;
     }
     .article-card {
         border: 1px solid #E5E7EB;
@@ -70,30 +76,57 @@ def load_news_types():
 
 
 @st.cache_data(ttl=300)
-def load_articles(news_type_slug: str):
-    # Only show articles published within the last MAX_ARTICLE_AGE_DAYS.
-    # Cutoff is computed in Python (not SQLite's datetime()) and compared
-    # as an ISO8601 string -- this format sorts/compares correctly as plain
-    # text as long as both sides use the same representation, which avoids
-    # relying on SQLite's own date-parsing quirks. Articles with no
-    # published_at (a feed that didn't provide one) are naturally excluded,
-    # since a NULL comparison against >= never evaluates true in SQL.
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=MAX_ARTICLE_AGE_DAYS)).isoformat()
+def load_regions():
     with get_conn() as conn:
         rows = conn.execute(
-            """
-            SELECT a.id, a.title, a.url, a.summary, a.image_url, a.published_at,
-                   s.name AS source_name, ar.region_slug
-            FROM articles a
-            JOIN article_news_types ant ON ant.article_id = a.id
-            JOIN sources s ON s.id = a.source_id
-            LEFT JOIN article_regions ar ON ar.article_id = a.id
-            WHERE ant.news_type_slug = ? AND a.published_at >= ?
-            ORDER BY a.published_at DESC
-            LIMIT 200
-            """,
-            (news_type_slug, cutoff),
+            "SELECT slug, name, level, sort_order FROM regions ORDER BY sort_order"
         ).fetchall()
+        return [dict(r) for r in rows]
+
+
+@st.cache_data(ttl=300)
+def load_articles(news_type_slug: str):
+    # Only show articles published within the last MAX_ARTICLE_AGE_DAYS --
+    # EXCEPT for "events". Event calendar feeds (e.g. Shepherd Express) set
+    # their RSS pubDate to when the entry was added to their system, which
+    # can be weeks before the event itself happens. Applying the same
+    # "recently published" rule as news would make upcoming events vanish
+    # shortly after being added, even though they're still relevant. So
+    # events skip the freshness filter entirely and show everything
+    # currently in the feed; the source's own feed naturally drops events
+    # once they're past.
+    with get_conn() as conn:
+        if news_type_slug == "events":
+            rows = conn.execute(
+                """
+                SELECT a.id, a.title, a.url, a.summary, a.image_url, a.published_at,
+                       s.name AS source_name, ar.region_slug
+                FROM articles a
+                JOIN article_news_types ant ON ant.article_id = a.id
+                JOIN sources s ON s.id = a.source_id
+                LEFT JOIN article_regions ar ON ar.article_id = a.id
+                WHERE ant.news_type_slug = ?
+                ORDER BY a.published_at DESC
+                LIMIT 200
+                """,
+                (news_type_slug,),
+            ).fetchall()
+        else:
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=MAX_ARTICLE_AGE_DAYS)).isoformat()
+            rows = conn.execute(
+                """
+                SELECT a.id, a.title, a.url, a.summary, a.image_url, a.published_at,
+                       s.name AS source_name, ar.region_slug
+                FROM articles a
+                JOIN article_news_types ant ON ant.article_id = a.id
+                JOIN sources s ON s.id = a.source_id
+                LEFT JOIN article_regions ar ON ar.article_id = a.id
+                WHERE ant.news_type_slug = ? AND a.published_at >= ?
+                ORDER BY a.published_at DESC
+                LIMIT 200
+                """,
+                (news_type_slug, cutoff),
+            ).fetchall()
         return [dict(r) for r in rows]
 
 
