@@ -12,7 +12,7 @@ import time
 from src.db import get_conn, init_db
 from src.load_config import load_taxonomy, load_sources
 
-USER_AGENT = "LocalNewsAggregator/0.1 (+contact: you@example.com)"
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 DELAY_BETWEEN_REQUESTS_SECONDS = 6
 
 
