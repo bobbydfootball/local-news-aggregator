@@ -75,8 +75,16 @@ st.markdown(
 components.html(
     """
     <script>
-    window.parent.document.body.setAttribute('tabindex', '-1');
-    window.parent.document.body.focus();
+    function grabFocus() {
+        try {
+            window.parent.focus();
+            window.parent.document.body.setAttribute('tabindex', '-1');
+            window.parent.document.body.focus();
+        } catch (e) {}
+    }
+    grabFocus();
+    setTimeout(grabFocus, 300);
+    setTimeout(grabFocus, 1000);
     </script>
     """,
     height=0,
