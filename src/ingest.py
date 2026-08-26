@@ -28,16 +28,26 @@ MAX_RETRIES_ON_429 = 2
 RETRY_BACKOFF_SECONDS = 20
 
 # When a source's exclude_keywords match (e.g. "(AP)" marking wire-service
-# content on a local paper's site), the article isn't dropped -- it's
-# reclassified. If it also looks sports-related, it goes to Sports;
-# otherwise it goes to State (defined as non-political general interest,
-# a real home for wire content that isn't hyperlocal). This list is a
-# heuristic, not exhaustive -- same trade-off as the PREP keyword rule.
+# content on a local paper's site), the article is reclassified rather than
+# using the source's normal default_news_types:
+#   1. If it doesn't mention Wisconsin/Milwaukee/a WI team, it's dropped
+#      entirely -- generic national/world wire content doesn't belong in a
+#      Wisconsin-focused aggregator, even though it's "good content" in the
+#      abstract.
+#   2. Otherwise, if it's sports-flavored -> Sports, else -> State.
+# These lists are heuristics, not exhaustive -- same trade-off as the PREP
+# keyword rule below.
 WIRE_SPORTS_KEYWORDS = [
     "baseball", "basketball", "football", "hockey", "soccer", "golf",
     "tennis", "volleyball", "wrestling", "olympic", "nba", "nfl", "mlb",
     "nhl", "ncaa", "world series", "super bowl", "stanley cup", "playoff",
     "championship", "brewers", "packers", "bucks", "badgers",
+]
+WISCONSIN_KEYWORDS = [
+    "wisconsin", "milwaukee", "waukesha", "madison", "green bay",
+    "packers", "brewers", "bucks", "badgers", "racine", "kenosha",
+    "appleton", "eau claire", "la crosse", "oshkosh", "wausau",
+    "governor evers", "gov. evers",
 ]
 WIRE_FALLBACK_NEWS_TYPE = "state"
 WIRE_SPORTS_NEWS_TYPE = "sports"
@@ -110,17 +120,29 @@ def ingest_source(source) -> int:
                 continue
 
             # Wire-service content (e.g. AP stories syndicated on a local
-            # paper's site alongside their own reporting) is kept, not
-            # dropped -- it's genuinely good content, it just doesn't belong
-            # under this source's normal default_news_types (a hyperlocal
-            # category). It gets reclassified instead: sports-flavored wire
-            # content -> Sports, everything else wire -> State.
+            # paper's site alongside their own reporting): if it has no
+            # Wisconsin relevance at all, drop it -- a story about Florida
+            # golf or national business news doesn't belong in a
+            # Wisconsin-focused aggregator just because it happened to run
+            # on a WI paper's site. WI-relevant wire content is kept and
+            # reclassified: sports-flavored -> Sports, otherwise -> State.
             raw_summary = entry.get("summary", "")
             combined_text = f"{title} {raw_summary}".lower()
             is_wire = any(kw.lower() in combined_text for kw in exclude_keywords)
+            wire_is_wi_relevant = is_wire and any(kw in combined_text for kw in WISCONSIN_KEYWORDS)
             wire_is_sports = is_wire and any(kw in combined_text for kw in WIRE_SPORTS_KEYWORDS)
 
             existing = conn.execute("SELECT id FROM articles WHERE url = ?", (url,)).fetchone()
+
+            if is_wire and not wire_is_wi_relevant:
+                if existing:
+                    # Was ingested before this WI-relevance check existed --
+                    # remove it now rather than leaving it mis-tagged.
+                    conn.execute("DELETE FROM article_news_types WHERE article_id = ?", (existing["id"],))
+                    conn.execute("DELETE FROM article_regions WHERE article_id = ?", (existing["id"],))
+                    conn.execute("DELETE FROM articles WHERE id = ?", (existing["id"],))
+                continue
+
             if existing:
                 article_id = existing["id"]
             else:
@@ -149,8 +171,8 @@ def ingest_source(source) -> int:
             conn.execute("DELETE FROM article_news_types WHERE article_id = ?", (article_id,))
             conn.execute("DELETE FROM article_regions WHERE article_id = ?", (article_id,))
 
-            title_matches_sports_keyword = (
-                source["sports_keyword"] and source["sports_keyword"].lower() in title.lower()
+            title_matches_sports_keyword = source["sports_keyword"] and any(
+                kw.lower() in title.lower() for kw in source["sports_keyword"].split("|")
             )
             if title_matches_sports_keyword:
                 # Local prep sports (e.g. GMToday's "PREP" prefix) takes
