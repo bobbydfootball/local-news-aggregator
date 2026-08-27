@@ -2,11 +2,13 @@
 # `color` is a hex value used for the Streamlit UI accent per section.
 #
 # This taxonomy mixes geographic categories (Waukesha) with topical
-# categories (Sports, State, Politics & Government, World, Events) by
-# deliberate choice -- Waukesha acts as an "everything local to Waukesha"
-# bucket so a single article never needs to appear in more than one
-# section. Milwaukee County content lives under "State" (no dedicated
-# Milwaukee category).
+# categories (Local Sports, State Sports, State, Politics & Government,
+# World, Events) by deliberate choice -- Waukesha acts as an "everything
+# local to Waukesha" bucket so a single article never needs to appear in
+# more than one section. Milwaukee County content lives under "State" (no
+# dedicated Milwaukee category). Local Sports and State Sports are split so
+# Freeman's local prep coverage doesn't compete with Packers/Brewers/Bucks/
+# Badgers content for the same display slot budget.
 #
 # IMPORTANT: renaming/removing a category here now cleans up automatically
 # -- load_config.py deletes old news_types rows (and their article tags)
@@ -17,32 +19,35 @@ news_types:
     name: "Waukesha"
     color: "#16A34A"       # green
     sort_order: 1
-  - slug: sports
-    name: "Sports"
-    color: "#EA580C"       # orange
+  - slug: local_sports
+    name: "Local Sports"
+    color: "#F97316"       # lighter orange, distinct from State Sports
     sort_order: 2
+  - slug: sports
+    name: "State Sports"
+    color: "#EA580C"       # orange
+    sort_order: 3
   - slug: state
     name: "State"
     color: "#7C3AED"       # purple
-    sort_order: 3
+    sort_order: 4
   - slug: politics
     name: "Politics & Government"
     color: "#2563EB"       # blue
-    sort_order: 4
+    sort_order: 5
   - slug: world
     name: "World"
     color: "#0F766E"       # dark teal
-    sort_order: 5
+    sort_order: 6
   - slug: events
     name: "Events"
     color: "#6B7280"       # gray -- signals "placeholder, not live yet"
-    sort_order: 6
+    sort_order: 7
 
 # Regions form a hierarchy: state > county > city.
 # Still used as the second-level grouping within each news type above --
 # e.g. the "Waukesha" category groups its articles into City of Waukesha /
-# Waukesha County sub-sections; "Sports" groups into City of Waukesha
-# (Freeman PREP) vs Wisconsin (pro/college teams).
+# Waukesha County sub-sections.
 regions:
   - slug: waukesha-city
     name: "City of Waukesha"
