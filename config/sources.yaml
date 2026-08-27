@@ -20,24 +20,24 @@
 
 sources:
   # --- Waukesha (City + County together) ---
-    - name: "Waukesha Freeman (GMToday) - News Section"
+  - name: "Waukesha Freeman (GMToday) - News Section"
     base_url: "https://www.gmtoday.com/the_freeman/news/"
     feed_url: "https://www.gmtoday.com/search/?f=rss&t=article&c=the_freeman/news&l=100&s=start_time&sd=desc"
     default_region: waukesha-city
     default_news_types: [waukesha]
-    
+
   - name: "Wisconsin Newspaper Association Wire"
     base_url: "https://www.wnanews.com/"
     feed_url: "https://www.wnanews.com/feed"
     default_region: waukesha-county
     default_news_types: [waukesha]
-    
+
   - name: "Waukesha Freeman (GMToday) - Sports Section"
     base_url: "https://www.gmtoday.com/the_freeman/sports/"
     feed_url: "https://www.gmtoday.com/search/?f=rss&t=article&c=the_freeman/sports&l=50&s=start_time&sd=desc"
     default_region: waukesha-city
     default_news_types: [local_sports]
-    
+
   # --- State (Milwaukee County news + general statewide interest) ---
   - name: "CBS58 Milwaukee"
     base_url: "https://www.cbs58.com/"
