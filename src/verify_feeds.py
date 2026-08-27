@@ -22,13 +22,14 @@ def verify_all():
     load_sources()
 
     with get_conn() as conn:
-        # Skip sources marked 'removed' (deleted from sources.yaml in a
-        # previous load_config run) -- no point re-checking feeds that are
-        # no longer part of the active configuration.
+        # Skip sources marked 'removed' (deleted from sources.yaml) and
+        # 'api_source' (non-RSS sources like Ticketmaster, managed by their
+        # own dedicated ingest script -- checking them here would just try
+        # to fetch their placeholder identifier as if it were a real URL).
         rows = conn.execute(
-            "SELECT id, name, feed_url FROM sources WHERE status != 'removed'"
+            "SELECT id, name, feed_url FROM sources WHERE status NOT IN ('removed', 'api_source')"
         ).fetchall()
-
+    
     results = []
     for row in rows:
         status, detail = check_feed(row["feed_url"])
