@@ -1,5 +1,5 @@
 name: Ingest news feeds
-
+#schedule set up
 on:
   schedule:
   - cron: "*/30 * * * *"
