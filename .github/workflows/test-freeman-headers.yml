@@ -1,0 +1,14 @@
+name: TEST - Check Freeman headers only
+
+on:
+  workflow_dispatch: {}   # manual trigger only, no schedule -- purely diagnostic
+
+jobs:
+  check-headers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch headers only (discard body)
+        run: |
+          curl -s -D - -o /dev/null \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" \
+            "https://www.gmtoday.com/search/?f=rss&t=article&c=the_freeman/news&l=100&s=start_time&sd=desc"
