@@ -2,13 +2,13 @@
 # `color` is a hex value used for the Streamlit UI accent per section.
 #
 # This taxonomy mixes geographic categories (Waukesha) with topical
-# categories (Local Sports, State Sports, State, Politics & Government,
-# World, Events) by deliberate choice -- Waukesha acts as an "everything
-# local to Waukesha" bucket so a single article never needs to appear in
-# more than one section. Milwaukee County content lives under "State" (no
-# dedicated Milwaukee category). Local Sports and State Sports are split so
-# Freeman's local prep coverage doesn't compete with Packers/Brewers/Bucks/
-# Badgers content for the same display slot budget.
+# categories (Local Sports, Packers, Brewers, Bucks, Badgers, State,
+# Politics & Government, World, Events) by deliberate choice -- Waukesha
+# acts as an "everything local to Waukesha" bucket so a single article
+# never needs to appear in more than one section. Milwaukee County content
+# lives under "State" (no dedicated Milwaukee category). Sports is split
+# into Local Sports plus one category per major team so no single team's
+# volume crowds out the others.
 #
 # IMPORTANT: renaming/removing a category here now cleans up automatically
 # -- load_config.py deletes old news_types rows (and their article tags)
@@ -21,28 +21,40 @@ news_types:
     sort_order: 1
   - slug: local_sports
     name: "Local Sports"
-    color: "#F97316"       # lighter orange, distinct from State Sports
+    color: "#F97316"       # lighter orange, distinct from team categories
     sort_order: 2
-  - slug: sports
-    name: "State Sports"
-    color: "#EA580C"       # orange
+  - slug: packers
+    name: "Packers"
+    color: "#CA8A04"       # gold
     sort_order: 3
+  - slug: brewers
+    name: "Brewers"
+    color: "#1E3A8A"       # navy
+    sort_order: 4
+  - slug: bucks
+    name: "Bucks"
+    color: "#059669"       # emerald green
+    sort_order: 5
+  - slug: badgers
+    name: "Badgers"
+    color: "#DC2626"       # cardinal red
+    sort_order: 6
   - slug: state
     name: "State"
     color: "#7C3AED"       # purple
-    sort_order: 4
+    sort_order: 7
   - slug: politics
     name: "Politics & Government"
     color: "#2563EB"       # blue
-    sort_order: 5
+    sort_order: 8
   - slug: world
     name: "World"
     color: "#0F766E"       # dark teal
-    sort_order: 6
+    sort_order: 9
   - slug: events
     name: "Events"
     color: "#6B7280"       # gray -- signals "placeholder, not live yet"
-    sort_order: 7
+    sort_order: 10
 
 # Regions form a hierarchy: state > county > city.
 # Still used as the second-level grouping within each news type above --
