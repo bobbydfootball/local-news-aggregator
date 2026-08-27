@@ -22,10 +22,10 @@ sources:
   # --- Waukesha (City + County together) ---
   - name: "Waukesha Freeman (GMToday) - General"
     base_url: "https://www.gmtoday.com/the_freeman/"
-    feed_url: "https://www.gmtoday.com/search/?f=rss&t=article&l=50&s=start_time&sd=desc"
+    feed_url: "https://www.gmtoday.com/search/?f=rss&t=article&l=100&s=start_time&sd=desc"
     default_region: waukesha-city
     default_news_types: [waukesha]
-    sports_keyword: "PREP|football|basketball|baseball|softball|wrestling|soccer|volleyball|hockey|golf|track|swim|tennis|cross country"
+    sports_keyword: "PREP|football|basketball|baseball|softball|wrestling|soccer|volleyball|hockey|golf|track|swim|tennis|cross country|WIAA|tournament"
     sports_keyword_scope: local_teams
     exclude_keywords: ["(AP)", "Associated Press", "Daily News", "News Graphic"]
 
