@@ -1,22 +1,32 @@
 name: Ingest news feeds
-#schedule set up
+
 on:
   schedule:
-  - cron: "15,45 * * * *"
-  workflow_dispatch: {}
+    - cron: "15,45 * * * *"   # hourly
+  workflow_dispatch: {}     # allow manual trigger from GitHub UI
 
 jobs:
   ingest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - run: pip install -r requirements.txt
+
       - run: python -m src.load_config
       - run: python -m src.verify_feeds
       - run: python -m src.ingest
+
+      - name: Ingest Ticketmaster concerts
+        continue-on-error: true   # a Ticketmaster outage/bad key should never block committing the rest of the pipeline's results
+        env:
+          TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
+        run: python -m src.ingest_ticketmaster
+
       - name: Commit updated database
         run: |
           git config user.name "news-ingest-bot"
