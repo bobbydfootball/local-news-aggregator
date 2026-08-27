@@ -15,8 +15,8 @@
 # contains this keyword, that specific article is reclassified as sports
 # (with sports_keyword_scope) instead of getting this source's normal
 # default_news_types. This is how Freeman's single combined feed splits
-# into "Waukesha" (everything else) and "Sports" (PREP/sport-word-tagged
-# articles) without a second network request.
+# into "Waukesha" (everything else) and "Sports" (PREP-tagged articles)
+# without a second network request.
 
 sources:
   # --- Waukesha (City + County together) ---
@@ -27,7 +27,7 @@ sources:
     default_news_types: [waukesha]
     sports_keyword: "PREP|football|basketball|baseball|softball|wrestling|soccer|volleyball|hockey|golf|track|swim|tennis|cross country"
     sports_keyword_scope: local_teams
-    exclude_keywords: ["(AP)", "Associated Press"]
+    exclude_keywords: ["(AP)", "Associated Press", "Daily News", "News Graphic"]
 
   - name: "Wisconsin Newspaper Association Wire"
     base_url: "https://www.wnanews.com/"
@@ -145,7 +145,11 @@ sources:
     sports_scope: state_teams
 
   # --- State (non-political general interest, beyond the Milwaukee sources
-   # --- Events ---
+  # already listed above): still no dedicated source for this -- everything
+  # else statewide in the roster is political commentary (see Politics &
+  # Government below). Open gap, ready to receive a source when one is found.
+
+  # --- Events ---
   - name: "Shepherd Express - Live Music"
     base_url: "https://shepherdexpress.com/search/event/live-music/"
     feed_url: "https://shepherdexpress.com/search/event/live-music/index.rss"
@@ -162,9 +166,3 @@ sources:
   # statewide fairs (Wisconsin State Fair, county fairs) -- no programmatic
   # source found for those despite extensive research. Concerts beyond
   # Milwaukee could be added later via Ticketmaster/SeatGeek APIs if wanted.
-  # else statewide in the roster is political commentary (see Politics &
-  # Government below). Open gap, ready to receive a source when one is found.
-
-  # --- Events ---
-  # Placeholder. See README "Phase 2" section -- Ticketmaster Discovery API
-  # is the planned path for concerts; no source added yet.
