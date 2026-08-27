@@ -17,6 +17,7 @@ Usage: python -m src.ingest
 import feedparser
 import requests
 import time
+import random
 from datetime import datetime, timezone
 from time import mktime
 from src.db import get_conn, init_db
@@ -24,8 +25,19 @@ from src.db import get_conn, init_db
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 MAX_SUMMARY_CHARS = 400
 DELAY_BETWEEN_REQUESTS_SECONDS = 6
-MAX_RETRIES_ON_429 = 2
-RETRY_BACKOFF_SECONDS = 20
+MAX_RETRIES_ON_429 = 3
+RETRY_BACKOFF_SECONDS = 25
+RETRY_JITTER_SECONDS = 10           # random +/- added to each backoff so
+                                     # retry timing isn't perfectly regular
+                                     # -- some bot-detection systems flag
+                                     # suspiciously consistent retry
+                                     # intervals as evidence of automation
+MAX_RETRY_AFTER_WAIT_SECONDS = 60  # cap how long we'll actually wait even if
+                                    # the server's real Retry-After value is
+                                    # much longer -- no point holding up the
+                                    # whole workflow for a 30-60 min window;
+                                    # better to just let the next scheduled
+                                    # run handle it
 
 # When a source's exclude_keywords match (e.g. "(AP)" marking wire-service
 # content, or "Daily News"/"News Graphic" marking a different GMToday paper),
@@ -35,7 +47,7 @@ RETRY_BACKOFF_SECONDS = 20
 #      entirely -- generic national/world wire content, or another paper's
 #      out-of-area coverage, doesn't belong in a Wisconsin-focused
 #      aggregator just because it happened to run on a WI paper's site.
-#   2. Otherwise, if it's sports-flavored -> State Sports, else -> State.
+#   2. Otherwise, if it's sports-flavored -> Sports, else -> State.
 #
 # WISCONSIN_TEAMS is checked for BOTH the relevance gate (#1) and the
 # sports-routing decision (#2), since a team name proves both at once.
@@ -91,12 +103,28 @@ def fetch_with_retry(feed_url: str):
     consistently, so a couple of retries within the same run meaningfully
     improves the odds of success instead of just waiting for next hour's
     scheduled run to get lucky. Other errors (404, etc.) fail immediately --
-    no point retrying a genuinely broken URL."""
+    no point retrying a genuinely broken URL.
+
+    If the server includes a Retry-After header, that real value is used
+    instead of our fixed guess -- the server is telling us exactly how long
+    to wait, which is more reliable than assuming."""
     resp = None
     for attempt in range(MAX_RETRIES_ON_429 + 1):
         resp = requests.get(feed_url, headers={"User-Agent": USER_AGENT}, timeout=15)
         if resp.status_code == 429 and attempt < MAX_RETRIES_ON_429:
-            time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+            retry_after = resp.headers.get("Retry-After")
+            if retry_after and retry_after.isdigit():
+                wait_seconds = min(int(retry_after), MAX_RETRY_AFTER_WAIT_SECONDS)
+            else:
+                # No real data from the server (confirmed via direct test --
+                # GMToday sends no Retry-After header), so this is still a
+                # guess. Jitter is added so our retry timing isn't perfectly
+                # regular, which is the one evidence-based improvement
+                # available without real server data to work from.
+                base_wait = RETRY_BACKOFF_SECONDS * (attempt + 1)
+                wait_seconds = base_wait + random.uniform(-RETRY_JITTER_SECONDS, RETRY_JITTER_SECONDS)
+                wait_seconds = max(5, wait_seconds)  # never wait less than 5s
+            time.sleep(wait_seconds)
             continue
         break
     resp.raise_for_status()
@@ -132,8 +160,7 @@ def ingest_source(source) -> int:
             # golf or national business news doesn't belong in a
             # Wisconsin-focused aggregator just because it happened to run
             # on a WI paper's site. WI-relevant wire content is kept and
-            # reclassified: sports-flavored -> State Sports, otherwise ->
-            # State.
+            # reclassified: sports-flavored -> Sports, otherwise -> State.
             raw_summary = entry.get("summary", "")
             combined_text = f"{title} {raw_summary}".lower()
             is_wire = any(kw.lower() in combined_text for kw in exclude_keywords)
