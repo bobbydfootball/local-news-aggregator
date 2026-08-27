@@ -69,9 +69,12 @@ st.markdown(
 
 # Focus the page body on load so arrow keys / Tab / Page Down work
 # immediately without the user needing to click into the page first.
-# st.markdown's script tags don't reliably execute in the browser, so
+# st.markdown's <script> tags don't reliably execute in the browser, so
 # this uses components.html instead, which renders in a same-origin iframe
-# and can reach the actual page via window.parent.
+# and can reach the actual page via window.parent. Focus is grabbed both
+# on the parent window itself and on its body element, and retried a few
+# times since Streamlit re-renders shortly after first load and can reset
+# focus in between.
 components.html(
     """
     <script>
@@ -97,6 +100,9 @@ def load_news_types():
         rows = conn.execute(
             "SELECT slug, name, color FROM news_types ORDER BY sort_order"
         ).fetchall()
+        # Convert sqlite3.Row -> plain dict. st.cache_data pickles whatever
+        # a cached function returns, and sqlite3.Row doesn't pickle reliably
+        # (this is what caused UnserializableReturnValueError on deploy).
         return [dict(r) for r in rows]
 
 
@@ -111,8 +117,20 @@ def load_regions():
 
 @st.cache_data(ttl=300)
 def load_articles(news_type_slug: str):
+    # Only show articles published within the last MAX_ARTICLE_AGE_DAYS --
+    # EXCEPT for "events". Event calendar feeds (e.g. Shepherd Express) set
+    # their RSS pubDate to when the entry was added to their system, which
+    # can be weeks before the event itself happens. Applying the same
+    # "recently published" rule as news would make upcoming events vanish
+    # shortly after being added, even though they're still relevant. So
+    # events skip the freshness filter entirely and show everything
+    # currently in the feed; the source's own feed naturally drops events
+    # once they're past.
     with get_conn() as conn:
         if news_type_slug == "events":
+            # Exclude Ticketmaster concerts here -- they're rendered
+            # separately in a compact expander (load_concerts below), not
+            # as full article cards.
             rows = conn.execute(
                 """
                 SELECT a.id, a.title, a.url, a.summary, a.image_url, a.published_at,
@@ -121,7 +139,7 @@ def load_articles(news_type_slug: str):
                 JOIN article_news_types ant ON ant.article_id = a.id
                 JOIN sources s ON s.id = a.source_id
                 LEFT JOIN article_regions ar ON ar.article_id = a.id
-                WHERE ant.news_type_slug = ?
+                WHERE ant.news_type_slug = ? AND s.name != 'Ticketmaster - Wisconsin Concerts'
                 ORDER BY a.published_at DESC
                 LIMIT 200
                 """,
@@ -144,6 +162,39 @@ def load_articles(news_type_slug: str):
                 (news_type_slug, cutoff),
             ).fetchall()
         return [dict(r) for r in rows]
+
+
+@st.cache_data(ttl=300)
+def load_concerts():
+    # Soonest-first (ASC), unlike news articles which sort newest-first --
+    # a concert next week matters more than one three months out, the
+    # opposite of how article recency works.
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT a.id, a.title, a.url, a.summary, a.image_url, a.published_at
+            FROM articles a
+            JOIN sources s ON s.id = a.source_id
+            WHERE s.name = 'Ticketmaster - Wisconsin Concerts'
+            ORDER BY a.published_at ASC
+            LIMIT 100
+            """
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def render_concert_row(concert):
+    date_display = concert["published_at"][:10] if concert["published_at"] else "TBA"
+    st.markdown(
+        f"""
+        <div style="padding:6px 0; border-bottom:1px solid #E5E7EB; font-size:0.92rem;">
+            <strong>{date_display}</strong> ·
+            <a href="{concert['url']}" target="_blank" style="color:#111827; text-decoration:none; font-weight:600;">{concert['title']}</a>
+            <span style="color:#6B7280;"> — {concert['summary'] or ''}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_article_card(article):
@@ -188,13 +239,35 @@ def main():
             unsafe_allow_html=True,
         )
         articles = load_articles(nt["slug"])
+
+        # Concerts render separately as compact rows in a collapsed
+        # expander, only under Events -- checked before the "no articles"
+        # early-out below, since concerts can have content even when the
+        # regular events article list (Brew City Buzz, Madcap) doesn't.
+        has_concerts = False
+        if nt["slug"] == "events":
+            concerts = load_concerts()
+            has_concerts = bool(concerts)
+            if has_concerts:
+                with st.expander(f"🎵 {len(concerts)} upcoming Wisconsin concerts (Ticketmaster)"):
+                    for concert in concerts:
+                        render_concert_row(concert)
+
         if not articles:
             if nt["slug"] == "events":
-                st.caption("Coming soon — this section is a placeholder until concerts/festivals support is built.")
+                if not has_concerts:
+                    st.caption("Coming soon — this section is a placeholder until concerts/festivals support is built.")
             else:
                 st.caption("No articles yet for this section.")
             continue
 
+        # Flat list, most recent first -- no region sub-grouping. The
+        # region/county labels on articles weren't reliably matching their
+        # actual content (see project history), so rather than keep fixing
+        # per-source region tagging, the display was simplified to avoid
+        # showing a county label that might not be accurate. Region data
+        # is still stored (article_regions table) in case a more reliable
+        # grouping approach is worth revisiting later.
         for article in articles[:20]:
             render_article_card(article)
 
