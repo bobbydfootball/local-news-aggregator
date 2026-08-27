@@ -155,9 +155,9 @@ sources:
   # Government below). Open gap, ready to receive a source when one is found.
 
   # --- Events ---
-  - name: "Shepherd Express - Live Music"
-    base_url: "https://shepherdexpress.com/search/event/live-music/"
-    feed_url: "https://shepherdexpress.com/search/event/live-music/index.rss"
+  - name: "Shepherd Express - Brew City Buzz"
+    base_url: "https://shepherdexpress.com/upcoming-events"
+    feed_url: "https://shepherdexpress.com/upcoming-events/index.rss"
     default_region: milwaukee-county
     default_news_types: [events]
 
