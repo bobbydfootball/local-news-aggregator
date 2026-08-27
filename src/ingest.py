@@ -35,7 +35,7 @@ RETRY_BACKOFF_SECONDS = 20
 #      entirely -- generic national/world wire content, or another paper's
 #      out-of-area coverage, doesn't belong in a Wisconsin-focused
 #      aggregator just because it happened to run on a WI paper's site.
-#   2. Otherwise, if it's sports-flavored -> Sports, else -> State.
+#   2. Otherwise, if it's sports-flavored -> State Sports, else -> State.
 #
 # WISCONSIN_TEAMS is checked for BOTH the relevance gate (#1) and the
 # sports-routing decision (#2), since a team name proves both at once.
@@ -132,7 +132,8 @@ def ingest_source(source) -> int:
             # golf or national business news doesn't belong in a
             # Wisconsin-focused aggregator just because it happened to run
             # on a WI paper's site. WI-relevant wire content is kept and
-            # reclassified: sports-flavored -> Sports, otherwise -> State.
+            # reclassified: sports-flavored -> State Sports, otherwise ->
+            # State.
             raw_summary = entry.get("summary", "")
             combined_text = f"{title} {raw_summary}".lower()
             is_wire = any(kw.lower() in combined_text for kw in exclude_keywords)
@@ -192,10 +193,13 @@ def ingest_source(source) -> int:
             )
             if title_matches_sports_keyword:
                 # Local prep sports (e.g. GMToday's "PREP" prefix) takes
-                # priority over wire detection.
+                # priority over wire detection, and goes to the dedicated
+                # Local Sports category rather than State Sports -- keeps
+                # local prep coverage from competing with Packers/Brewers/
+                # Badgers/etc. for the same display slot budget.
                 conn.execute(
                     "INSERT OR IGNORE INTO article_news_types (article_id, news_type_slug) VALUES (?, ?)",
-                    (article_id, "sports"),
+                    (article_id, "local_sports"),
                 )
             elif is_wire:
                 target_type = WIRE_SPORTS_NEWS_TYPE if wire_is_sports else WIRE_FALLBACK_NEWS_TYPE
