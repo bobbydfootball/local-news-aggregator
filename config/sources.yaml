@@ -9,14 +9,13 @@
 # -- the taxonomy was restructured so every article resolves to exactly one
 # category (no more cross-listing/duplication across sections).
 #
-# `sports_scope` only applies when the news type is "sports".
+# `sports_scope` only applies to team categories (packers/brewers/bucks/
+# badgers/local_sports).
 #
 # `sports_keyword` / `sports_keyword_scope` (optional): if a feed's title
 # contains this keyword, that specific article is reclassified as sports
 # (with sports_keyword_scope) instead of getting this source's normal
-# default_news_types. This is how Freeman's single combined feed splits
-# into "Waukesha" (everything else) and "Sports" (PREP-tagged articles)
-# without a second network request.
+# default_news_types.
 
 sources:
   # --- Waukesha (City + County together) ---
@@ -83,68 +82,71 @@ sources:
     default_region: wisconsin
     default_news_types: [world]
 
-  # --- Sports (state pro/college teams) ---
+  # --- Packers ---
   - name: "Green Bay Packers (Official)"
     base_url: "https://www.packers.com/"
     feed_url: "https://www.packers.com/rss/news"
     default_region: wisconsin
-    default_news_types: [sports]
+    default_news_types: [packers]
     sports_scope: state_teams
 
+  # --- Brewers ---
   - name: "Milwaukee Brewers (Official)"
     base_url: "https://www.mlb.com/brewers"
     feed_url: "https://www.mlb.com/brewers/feeds/news/rss.xml"
     default_region: wisconsin
-    default_news_types: [sports]
+    default_news_types: [brewers]
     sports_scope: state_teams
 
+  # --- Bucks ---
   - name: "Milwaukee Bucks - Brew Hoop (SB Nation)"
     base_url: "https://www.brewhoop.com/"
     feed_url: "https://www.brewhoop.com/rss/current.xml"
     default_region: wisconsin
-    default_news_types: [sports]
+    default_news_types: [bucks]
     sports_scope: state_teams
 
+  # --- Badgers (all sports combined into one category) ---
   - name: "Wisconsin Badgers Football (Official)"
     base_url: "https://uwbadgers.com/sports/football"
     feed_url: "https://uwbadgers.com/rss?path=football"
     default_region: wisconsin
-    default_news_types: [sports]
+    default_news_types: [badgers]
     sports_scope: state_teams
 
   - name: "Wisconsin Badgers Men's Basketball (Official)"
     base_url: "https://uwbadgers.com/sports/mens-basketball"
     feed_url: "https://uwbadgers.com/rss?path=mbball"
     default_region: wisconsin
-    default_news_types: [sports]
+    default_news_types: [badgers]
     sports_scope: state_teams
 
   - name: "Wisconsin Badgers Women's Basketball (Official)"
     base_url: "https://uwbadgers.com/sports/womens-basketball"
     feed_url: "https://uwbadgers.com/rss?path=wbball"
     default_region: wisconsin
-    default_news_types: [sports]
+    default_news_types: [badgers]
     sports_scope: state_teams
 
   - name: "Wisconsin Badgers Men's Hockey (Official)"
     base_url: "https://uwbadgers.com/sports/mens-ice-hockey"
     feed_url: "https://uwbadgers.com/rss?path=mhockey"
     default_region: wisconsin
-    default_news_types: [sports]
+    default_news_types: [badgers]
     sports_scope: state_teams
 
   - name: "Wisconsin Badgers Women's Hockey (Official)"
     base_url: "https://uwbadgers.com/sports/womens-ice-hockey"
     feed_url: "https://uwbadgers.com/rss?path=whockey"
     default_region: wisconsin
-    default_news_types: [sports]
+    default_news_types: [badgers]
     sports_scope: state_teams
 
   - name: "Wisconsin Badgers Volleyball (Official)"
     base_url: "https://uwbadgers.com/sports/womens-volleyball"
     feed_url: "https://uwbadgers.com/rss?path=wvball"
     default_region: wisconsin
-    default_news_types: [sports]
+    default_news_types: [badgers]
     sports_scope: state_teams
 
   # --- State (non-political general interest, beyond the Milwaukee sources
