@@ -28,26 +28,33 @@ MAX_RETRIES_ON_429 = 2
 RETRY_BACKOFF_SECONDS = 20
 
 # When a source's exclude_keywords match (e.g. "(AP)" marking wire-service
-# content on a local paper's site), the article is reclassified rather than
-# using the source's normal default_news_types:
+# content, or "Daily News"/"News Graphic" marking a different GMToday paper),
+# the article is reclassified rather than using the source's normal
+# default_news_types:
 #   1. If it doesn't mention Wisconsin/Milwaukee/a WI team, it's dropped
-#      entirely -- generic national/world wire content doesn't belong in a
-#      Wisconsin-focused aggregator, even though it's "good content" in the
-#      abstract.
+#      entirely -- generic national/world wire content, or another paper's
+#      out-of-area coverage, doesn't belong in a Wisconsin-focused
+#      aggregator just because it happened to run on a WI paper's site.
 #   2. Otherwise, if it's sports-flavored -> Sports, else -> State.
-# These lists are heuristics, not exhaustive -- same trade-off as the PREP
-# keyword rule below.
-WIRE_SPORTS_KEYWORDS = [
+#
+# WISCONSIN_TEAMS is checked for BOTH the relevance gate (#1) and the
+# sports-routing decision (#2), since a team name proves both at once.
+# GENERIC_SPORTS_KEYWORDS only affects #2 -- it never counts toward
+# relevance on its own, since a generic sports word like "golf" appearing
+# in a story with no Wisconsin connection shouldn't rescue it from being
+# dropped (that's exactly the "Florida golf story" problem this whole
+# check was built to solve).
+WISCONSIN_TEAMS = ["packers", "brewers", "bucks", "badgers"]
+GENERIC_SPORTS_KEYWORDS = [
     "baseball", "basketball", "football", "hockey", "soccer", "golf",
     "tennis", "volleyball", "wrestling", "olympic", "nba", "nfl", "mlb",
     "nhl", "ncaa", "world series", "super bowl", "stanley cup", "playoff",
-    "championship", "brewers", "packers", "bucks", "badgers",
+    "championship",
 ]
 WISCONSIN_KEYWORDS = [
     "wisconsin", "milwaukee", "waukesha", "madison", "green bay",
-    "packers", "brewers", "bucks", "badgers", "racine", "kenosha",
-    "appleton", "eau claire", "la crosse", "oshkosh", "wausau",
-    "governor evers", "gov. evers",
+    "racine", "kenosha", "appleton", "eau claire", "la crosse",
+    "oshkosh", "wausau", "governor evers", "gov. evers",
 ]
 WIRE_FALLBACK_NEWS_TYPE = "state"
 WIRE_SPORTS_NEWS_TYPE = "sports"
@@ -129,8 +136,14 @@ def ingest_source(source) -> int:
             raw_summary = entry.get("summary", "")
             combined_text = f"{title} {raw_summary}".lower()
             is_wire = any(kw.lower() in combined_text for kw in exclude_keywords)
-            wire_is_wi_relevant = is_wire and any(kw in combined_text for kw in WISCONSIN_KEYWORDS)
-            wire_is_sports = is_wire and any(kw in combined_text for kw in WIRE_SPORTS_KEYWORDS)
+            wire_is_wi_relevant = is_wire and (
+                any(kw in combined_text for kw in WISCONSIN_KEYWORDS)
+                or any(kw in combined_text for kw in WISCONSIN_TEAMS)
+            )
+            wire_is_sports = is_wire and (
+                any(kw in combined_text for kw in WISCONSIN_TEAMS)
+                or any(kw in combined_text for kw in GENERIC_SPORTS_KEYWORDS)
+            )
 
             existing = conn.execute("SELECT id FROM articles WHERE url = ?", (url,)).fetchone()
 
@@ -167,7 +180,10 @@ def ingest_source(source) -> int:
             # default_news_types or default_region changes, previously-
             # ingested articles get correctly re-tagged on the next run
             # instead of keeping stale tags from whatever config was active
-            # when they were first inserted.
+            # when they were first inserted. (This is what caused sports
+            # articles to "sprinkle" into non-sports sections, and region
+            # sub-groupings to look broken, after several rounds of
+            # taxonomy/source changes -- old tags never got refreshed.)
             conn.execute("DELETE FROM article_news_types WHERE article_id = ?", (article_id,))
             conn.execute("DELETE FROM article_regions WHERE article_id = ?", (article_id,))
 
