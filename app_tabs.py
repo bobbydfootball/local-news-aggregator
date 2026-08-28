@@ -215,7 +215,16 @@ def load_joke():
         row = conn.execute("SELECT value FROM settings WHERE key = 'daily_joke'").fetchone()
         return row["value"] if row else None
 
-
+def get_contrast_text_color(hex_color: str) -> str:
+    """Return 'white' or 'black', whichever is more readable against the
+    given hex background color. Uses the standard YIQ perceived-brightness
+    formula (weights green heaviest since the eye is most sensitive to it,
+    blue least) rather than a naive RGB average."""
+    hex_color = hex_color.lstrip("#")
+    r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+    yiq = (r * 299 + g * 587 + b * 114) / 1000
+    return "black" if yiq >= 128 else "white"
+    
 def render_article_card(article):
     cols = st.columns([1, 4]) if article["image_url"] else [st.container()]
     if article["image_url"]:
@@ -269,14 +278,17 @@ def main():
     # BaseWeb tab component under the hood, hence targeting
     # button[data-baseweb="tab"] rather than a Streamlit-specific class.
     tab_css_rules = "\n".join(
+        f'[data-testid="stTab"]:nth-child({i + 1}) {{ '
+        f'background-color: {nt["color"]} !important; '
+        f'border-radius: 6px 6px 0 0 !important; }}\n'
         f'[data-testid="stTab"]:nth-child({i + 1}) [data-testid="stMarkdownContainer"] p {{ '
-        f'color: {nt["color"]} !important; }}\n'
+        f'color: {get_contrast_text_color(nt["color"])} !important; }}\n'
         f'[data-testid="stTab"]:nth-child({i + 1})[aria-selected="true"] {{ '
         f'border-bottom-color: {nt["color"]} !important; }}'
         for i, nt in enumerate(news_types)
     )
     st.markdown(f"<style>{tab_css_rules}</style>", unsafe_allow_html=True)
-        
+            
     tabs = st.tabs([nt["name"] for nt in news_types])
 
     for tab, nt in zip(tabs, news_types):
