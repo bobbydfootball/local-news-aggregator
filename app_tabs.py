@@ -278,17 +278,14 @@ def main():
     # BaseWeb tab component under the hood, hence targeting
     # button[data-baseweb="tab"] rather than a Streamlit-specific class.
     tab_css_rules = "\n".join(
-        f'[data-testid="stTab"]:nth-child({i + 1}) {{ '
-        f'background-color: {nt["color"]} !important; '
-        f'border-radius: 6px 6px 0 0 !important; }}\n'
         f'[data-testid="stTab"]:nth-child({i + 1}) [data-testid="stMarkdownContainer"] p {{ '
-        f'color: {get_contrast_text_color(nt["color"])} !important; }}\n'
+        f'color: {nt["color"]} !important; }}\n'
         f'[data-testid="stTab"]:nth-child({i + 1})[aria-selected="true"] {{ '
         f'border-bottom-color: {nt["color"]} !important; }}'
         for i, nt in enumerate(news_types)
     )
     st.markdown(f"<style>{tab_css_rules}</style>", unsafe_allow_html=True)
-            
+               
     tabs = st.tabs([nt["name"] for nt in news_types])
 
     for tab, nt in zip(tabs, news_types):
