@@ -58,7 +58,7 @@ st.markdown(
         font-size: 0.92rem;
         color: #374151;
     }
-        /* Hide the default Streamlit header bar (deploy button, menu, etc.) */
+    /* Hide the default Streamlit header bar (deploy button, menu, etc.) */
     header[data-testid="stHeader"] {
         display: none;
     }
@@ -209,6 +209,13 @@ def render_concert_row(concert):
     )
 
 
+@st.cache_data(ttl=300)
+def load_joke():
+    with get_conn() as conn:
+        row = conn.execute("SELECT value FROM settings WHERE key = 'daily_joke'").fetchone()
+        return row["value"] if row else None
+
+
 def render_article_card(article):
     cols = st.columns([1, 4]) if article["image_url"] else [st.container()]
     if article["image_url"]:
@@ -233,8 +240,19 @@ def render_article_card(article):
 
 def main():
     init_db()
-    st.title("📰 Bo6's News Aggregator")
-    st.caption("Local, State, World News and Events.  If its not here you don't need to know about it.")
+
+    title_col, joke_col = st.columns([3, 2])
+    with title_col:
+        st.title("📰 Bo6's News Aggregator")
+    with joke_col:
+        joke = load_joke()
+        if joke:
+            st.markdown(
+                f"<div style='padding-top:1.9rem; font-style:italic; color:#6B7280; font-size:0.95rem;'>😄 {joke}</div>",
+                unsafe_allow_html=True,
+            )
+
+    st.caption("Local news for Waukesha, Waukesha County, Milwaukee County & Wisconsin")
 
     news_types = load_news_types()
 
