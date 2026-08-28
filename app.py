@@ -106,6 +106,31 @@ components.html(
     height=0,
 )
 
+# Inject the iOS "Add to Home Screen" icon. st.set_page_config's page_icon
+# only controls the browser tab favicon -- iOS Safari ignores that entirely
+# for the home screen icon and looks specifically for a
+# <link rel="apple-touch-icon"> tag, which Streamlit has no native way to
+# add. Same cross-frame trick as the focus grabber above: reach into the
+# real parent document and insert the tag via JS. Checks for an existing
+# tag first so repeated Streamlit reruns (which happen on every user
+# interaction) don't pile up duplicate <link> tags in the page head.
+components.html(
+    """
+    <script>
+    (function() {
+        var existing = window.parent.document.querySelector('link[rel="apple-touch-icon"]');
+        if (!existing) {
+            var link = window.parent.document.createElement('link');
+            link.rel = 'apple-touch-icon';
+            link.sizes = '180x180';
+            link.href = 'app/static/apple-touch-icon.png';
+            window.parent.document.head.appendChild(link);
+        }
+    })();
+    </script>
+    """,
+    height=0,
+)
 
 @st.cache_data(ttl=300)
 def load_news_types():
