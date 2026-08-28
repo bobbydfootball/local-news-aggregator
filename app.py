@@ -225,7 +225,7 @@ def render_article_card(article):
 def main():
     init_db()
     st.title("📰 Bo6's News Aggregator")
-    st.caption("Local news for Waukesha, Waukesha County, Milwaukee County & Wisconsin")
+    st.caption("Local, State, World News and Events.  If its not here you don't need to know about it.")
 
     news_types = load_news_types()
 
