@@ -252,7 +252,7 @@ def main():
                 unsafe_allow_html=True,
             )
 
-    st.caption("Local news for Waukesha, Waukesha County, Milwaukee County & Wisconsin")
+    st.caption("If its not on this page, you don't need to know about it")
 
     news_types = load_news_types()
 
