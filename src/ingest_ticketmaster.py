@@ -109,13 +109,47 @@ def fetch_all_events(api_key: str):
     return all_events
 
 
+def cleanup_past_concerts():
+    """Delete Ticketmaster concert rows whose event date has already
+    passed. Compares just the date portion (first 10 chars, YYYY-MM-DD) of
+    published_at against today's date -- this works regardless of whether
+    a given row's published_at has a full UTC timestamp with timezone info
+    or just a bare local date/time, since the date prefix is always in the
+    same YYYY-MM-DD position either way.
+
+    Runs on every invocation, even if the API key is missing or the fetch
+    fails below -- keeping the database honest doesn't depend on being able
+    to reach Ticketmaster right now."""
+    today_str = datetime.now(timezone.utc).date().isoformat()
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT a.id FROM articles a
+            JOIN sources s ON s.id = a.source_id
+            WHERE s.name = ? AND a.published_at IS NOT NULL
+              AND substr(a.published_at, 1, 10) < ?
+            """,
+            (SOURCE_NAME, today_str),
+        ).fetchall()
+        for row in rows:
+            conn.execute("DELETE FROM article_news_types WHERE article_id = ?", (row["id"],))
+            conn.execute("DELETE FROM article_regions WHERE article_id = ?", (row["id"],))
+            conn.execute("DELETE FROM articles WHERE id = ?", (row["id"],))
+        return len(rows)
+
+
 def run_ingest_ticketmaster():
+    init_db()
+
+    deleted = cleanup_past_concerts()
+    if deleted:
+        print(f"     Ticketmaster - removed {deleted} past concert(s)")
+
     api_key = os.environ.get("TICKETMASTER_API_KEY")
     if not api_key:
         print("SKIP Ticketmaster - TICKETMASTER_API_KEY not set")
         return
 
-    init_db()
     source_id = ensure_source_exists()
 
     try:
