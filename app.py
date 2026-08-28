@@ -58,9 +58,18 @@ st.markdown(
         font-size: 0.92rem;
         color: #374151;
     }
-    /* Hide the default Streamlit header bar (deploy button, menu, etc.) */
+        /* Hide the default Streamlit header bar (deploy button, menu, etc.) */
     header[data-testid="stHeader"] {
         display: none;
+    }
+    /* Bigger, bold expander title (currently only used for the Ticketmaster
+       concerts dropdown) -- Streamlit doesn't expose font-size on expander
+       labels directly, so this targets the underlying summary element.
+       Covers a couple of selector variants for version compatibility. */
+    [data-testid="stExpander"] summary,
+    [data-testid="stExpander"] summary p {
+        font-size: 1.3rem !important;
+        font-weight: 700 !important;
     }
     </style>
     """,
