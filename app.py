@@ -106,32 +106,40 @@ components.html(
     height=0,
 )
 
-# Inject the iOS "Add to Home Screen" icon. st.set_page_config's page_icon
-# only controls the browser tab favicon -- iOS Safari ignores that entirely
-# for the home screen icon and looks specifically for a
-# <link rel="apple-touch-icon"> tag, which Streamlit has no native way to
-# add. Same cross-frame trick as the focus grabber above: reach into the
-# real parent document and insert the tag via JS. Checks for an existing
-# tag first so repeated Streamlit reruns (which happen on every user
-# interaction) don't pile up duplicate <link> tags in the page head.
+# Inject the iOS "Add to Home Screen" icon AND a custom home screen name.
+# st.set_page_config's page_icon/page_title only control the browser tab
+# favicon/title -- iOS Safari ignores both for the home screen and instead
+# looks for a <link rel="apple-touch-icon"> tag (icon) and a
+# <meta name="apple-mobile-web-app-title"> tag (name), neither of which
+# Streamlit has a native way to set. Same cross-frame trick as the focus
+# grabber above: reach into the real parent document and insert both via
+# JS. Checks for existing tags first so repeated Streamlit reruns (which
+# happen on every user interaction) don't pile up duplicates in the head.
 components.html(
     """
     <script>
     (function() {
-        var existing = window.parent.document.querySelector('link[rel="apple-touch-icon"]');
-        if (!existing) {
-            var link = window.parent.document.createElement('link');
+        var doc = window.parent.document;
+
+        if (!doc.querySelector('link[rel="apple-touch-icon"]')) {
+            var link = doc.createElement('link');
             link.rel = 'apple-touch-icon';
             link.sizes = '180x180';
             link.href = 'app/static/apple-touch-icon.png';
-            window.parent.document.head.appendChild(link);
+            doc.head.appendChild(link);
+        }
+
+        if (!doc.querySelector('meta[name="apple-mobile-web-app-title"]')) {
+            var meta = doc.createElement('meta');
+            meta.name = 'apple-mobile-web-app-title';
+            meta.content = 'Bo6 News';
+            doc.head.appendChild(meta);
         }
     })();
     </script>
     """,
     height=0,
 )
-
 @st.cache_data(ttl=300)
 def load_news_types():
     with get_conn() as conn:
