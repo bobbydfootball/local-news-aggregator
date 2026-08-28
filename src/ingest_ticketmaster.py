@@ -17,6 +17,7 @@ Usage: python -m src.ingest_ticketmaster
 """
 
 import os
+import time
 import requests
 from datetime import datetime, timezone
 from src.db import get_conn, init_db
@@ -25,6 +26,8 @@ API_URL = "https://app.ticketmaster.com/discovery/v2/events.json"
 SOURCE_NAME = "Ticketmaster - Wisconsin Concerts"
 SOURCE_FEED_URL = "ticketmaster-api://wisconsin-concerts"  # not a real URL -- just a stable unique identifier for the sources table
 SOURCE_STATUS = "api_source"  # distinct from 'active' so ingest.py's RSS loop and verify_feeds.py both skip this row
+PAGE_SIZE = 200
+MAX_PAGES = 4   # 200 * 4 = 800, safely under Ticketmaster's hard 1000-result "deep paging" cap (size * page < 1000)
 
 
 def ensure_source_exists():
@@ -73,6 +76,39 @@ def format_display_summary(event: dict) -> str:
     return f"{location} — {when}"
 
 
+def fetch_all_events(api_key: str):
+    """Fetch up to MAX_PAGES pages of results, stopping early if Ticketmaster
+    reports no more pages available. Respects their documented deep-paging
+    cap (size * page < 1000) via the MAX_PAGES constant above."""
+    all_events = []
+    for page in range(MAX_PAGES):
+        resp = requests.get(
+            API_URL,
+            params={
+                "apikey": api_key,
+                "stateCode": "WI",
+                "classificationName": "Music",
+                "size": PAGE_SIZE,
+                "page": page,
+                "sort": "date,asc",
+            },
+            timeout=20,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        events = data.get("_embedded", {}).get("events", [])
+        if not events:
+            break
+        all_events.extend(events)
+
+        total_pages = data.get("page", {}).get("totalPages", 1)
+        if page >= total_pages - 1:
+            break
+        time.sleep(1)  # small courtesy delay between page requests
+
+    return all_events
+
+
 def run_ingest_ticketmaster():
     api_key = os.environ.get("TICKETMASTER_API_KEY")
     if not api_key:
@@ -83,24 +119,11 @@ def run_ingest_ticketmaster():
     source_id = ensure_source_exists()
 
     try:
-        resp = requests.get(
-            API_URL,
-            params={
-                "apikey": api_key,
-                "stateCode": "WI",
-                "classificationName": "Music",
-                "size": 100,
-                "sort": "date,asc",
-            },
-            timeout=20,
-        )
-        resp.raise_for_status()
-        data = resp.json()
+        events = fetch_all_events(api_key)
     except requests.RequestException as e:
         print(f"FAIL Ticketmaster - {e}")
         return
 
-    events = data.get("_embedded", {}).get("events", [])
     if not events:
         print("OK   Ticketmaster - Wisconsin Concerts     +0 new (0 events returned)")
         return
