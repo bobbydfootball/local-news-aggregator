@@ -115,31 +115,12 @@ components.html(
 # grabber above: reach into the real parent document and insert both via
 # JS. Checks for existing tags first so repeated Streamlit reruns (which
 # happen on every user interaction) don't pile up duplicates in the head.
-components.html(
-    """
-    <script>
-    (function() {
-        var doc = window.parent.document;
-
-        if (!doc.querySelector('link[rel="apple-touch-icon"]')) {
-            var link = doc.createElement('link');
-            link.rel = 'apple-touch-icon';
-            link.sizes = '180x180';
-            link.href = 'app/static/apple-touch-icon.png';
-            doc.head.appendChild(link);
-        }
-
-        if (!doc.querySelector('meta[name="apple-mobile-web-app-title"]')) {
-            var meta = doc.createElement('meta');
-            meta.name = 'apple-mobile-web-app-title';
-            meta.content = 'Bo6 News';
-            doc.head.appendChild(meta);
-        }
-    })();
-    </script>
-    """,
-    height=0,
+st.markdown(
+    '<link rel="apple-touch-icon" sizes="180x180" href="app/static/apple-touch-icon.png">'
+    '<meta name="apple-mobile-web-app-title" content="Bo6 News">',
+    unsafe_allow_html=True,
 )
+
 @st.cache_data(ttl=300)
 def load_news_types():
     with get_conn() as conn:
