@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: "15,45 * * * *"   # hourly
   workflow_dispatch: {}     # allow manual trigger from GitHub UI
-  
+
 concurrency:
   group: ingest-workflow
   cancel-in-progress: false   # queue overlapping runs instead of letting them race and fight over the final git push (data/news.db is binary, so a merge conflict there can't auto-resolve the way text files can)
@@ -30,6 +30,10 @@ jobs:
         env:
           TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
         run: python -m src.ingest_ticketmaster
+
+      - name: Ingest dad joke
+        continue-on-error: true   # a joke-API hiccup shouldn't block the news pipeline
+        run: python -m src.ingest_joke
 
       - name: Commit updated database
         run: |
