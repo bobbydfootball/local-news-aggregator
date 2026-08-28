@@ -177,10 +177,13 @@ def load_concerts():
             JOIN sources s ON s.id = a.source_id
             WHERE s.name = 'Ticketmaster - Wisconsin Concerts'
             ORDER BY a.published_at ASC
-            LIMIT 100
+            LIMIT 800
             """
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+CONCERTS_PER_PAGE = 50
 
 
 def render_concert_row(concert):
@@ -249,9 +252,32 @@ def main():
             concerts = load_concerts()
             has_concerts = bool(concerts)
             if has_concerts:
+                total_pages = max(1, (len(concerts) - 1) // CONCERTS_PER_PAGE + 1)
+                if "concert_page" not in st.session_state:
+                    st.session_state.concert_page = 0
+                # Clamp in case the list shrank since the page was set
+                st.session_state.concert_page = min(st.session_state.concert_page, total_pages - 1)
+
                 with st.expander(f"🎵 {len(concerts)} upcoming Wisconsin concerts (Ticketmaster)"):
-                    for concert in concerts:
+                    page = st.session_state.concert_page
+                    start = page * CONCERTS_PER_PAGE
+                    for concert in concerts[start:start + CONCERTS_PER_PAGE]:
                         render_concert_row(concert)
+
+                    nav_prev, nav_label, nav_next = st.columns([1, 2, 1])
+                    with nav_prev:
+                        if st.button("◀ Previous", disabled=(page == 0), key="concert_prev"):
+                            st.session_state.concert_page -= 1
+                            st.rerun()
+                    with nav_label:
+                        st.markdown(
+                            f"<div style='text-align:center; padding-top:6px; color:#6B7280;'>Page {page + 1} of {total_pages}</div>",
+                            unsafe_allow_html=True,
+                        )
+                    with nav_next:
+                        if st.button("Next ▶", disabled=(page >= total_pages - 1), key="concert_next"):
+                            st.session_state.concert_page += 1
+                            st.rerun()
 
         if not articles:
             if nt["slug"] == "events":
