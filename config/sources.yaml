@@ -44,7 +44,7 @@ sources:
     feed_url: "https://www.cbs58.com/rss"
     default_region: milwaukee-county
     default_news_types: [state]
-    sports_keyword: "high school"
+    sports_keyword: "high school|Friday Night Rivals"
     sports_keyword_scope: local_teams
     team_routing: true
     local_keyword: ["Waukesha", "Delafield", "Oconomowoc", "Sussex"]
