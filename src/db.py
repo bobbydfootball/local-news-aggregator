@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS sources (
     sports_keyword_scope TEXT,          -- local_teams / state_teams, used only for keyword-matched articles
     exclude_keywords    TEXT,           -- optional: "|"-separated keywords; if title+summary+author contains any, the article is treated as wire-service content and reclassified instead of using this source's default_news_types
     team_routing        TEXT,           -- optional: if truthy, articles mentioning a specific WI team (Packers/Brewers/Bucks/Badgers) are routed directly to that team's category, ahead of every other rule
+    local_keyword        TEXT,          -- optional: "|"-separated place names (e.g. "Waukesha|Delafield"); if title+summary contains any, the article is routed to the waukesha category, same pattern as sports_keyword -> local_sports
     status              TEXT DEFAULT 'active',   -- active / dead / needs_review
     last_fetched_at     TEXT,
     last_error          TEXT
