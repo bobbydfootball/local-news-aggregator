@@ -354,7 +354,7 @@ def main():
                     st.caption("No articles yet for this section.")
                 continue
 
-            for article in articles[:20]:
+            for article in articles[:45]:
                 render_article_card(article)
 
 
