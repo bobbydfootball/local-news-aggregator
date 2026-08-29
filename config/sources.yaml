@@ -9,13 +9,14 @@
 # -- the taxonomy was restructured so every article resolves to exactly one
 # category (no more cross-listing/duplication across sections).
 #
-# `sports_scope` only applies to team categories (packers/brewers/bucks/
-# badgers/local_sports).
+# `sports_scope` only applies when the news type is "sports".
 #
 # `sports_keyword` / `sports_keyword_scope` (optional): if a feed's title
 # contains this keyword, that specific article is reclassified as sports
 # (with sports_keyword_scope) instead of getting this source's normal
-# default_news_types.
+# default_news_types. This is how Freeman's single combined feed splits
+# into "Waukesha" (everything else) and "Sports" (PREP-tagged articles)
+# without a second network request.
 
 sources:
   # --- Waukesha (City + County together) ---
@@ -50,10 +51,24 @@ sources:
     default_region: milwaukee-county
     default_news_types: [state]
 
+  - name: "Spectrum News 1 Wisconsin - Local Headlines"
+    base_url: "https://spectrumnews1.com/wi/milwaukee/news"
+    feed_url: "http://spectrumlocalnews.com/services/contentfeed.wi%7Cmilwaukee%7Cnews.landing.rss"
+    default_region: wisconsin
+    default_news_types: [state]
+    exclude_keywords: ["Associated Press"]
+    team_routing: true
+
   # --- Politics & Government (statewide) ---
   - name: "Wisconsin Examiner"
     base_url: "https://wisconsinexaminer.com/"
     feed_url: "https://wisconsinexaminer.com/feed/"
+    default_region: wisconsin
+    default_news_types: [politics]
+
+  - name: "Spectrum News 1 Wisconsin - Politics"
+    base_url: "https://spectrumnews1.com/wi/milwaukee/politics"
+    feed_url: "http://spectrumlocalnews.com/services/contentfeed.wi%7Cmilwaukee%7Cpolitics.hero.rss"
     default_region: wisconsin
     default_news_types: [politics]
 
@@ -149,10 +164,10 @@ sources:
     default_news_types: [badgers]
     sports_scope: state_teams
 
-  # --- State (non-political general interest, beyond the Milwaukee sources
-  # already listed above): still no dedicated source for this -- everything
-  # else statewide in the roster is political commentary (see Politics &
-  # Government below). Open gap, ready to receive a source when one is found.
+  # --- State: general statewide interest, non-political (Milwaukee
+  # sources above, plus Spectrum News 1's Local Headlines feed further up,
+  # both routed here by default unless team_routing/exclude_keywords send
+  # a specific article elsewhere).
 
   # --- Events ---
   - name: "Shepherd Express - Brew City Buzz"
