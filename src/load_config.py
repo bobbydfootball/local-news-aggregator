@@ -82,18 +82,19 @@ def load_sources():
             # verify_feeds, rather than staying stuck on whatever status it
             # had before it was removed.
             cur = conn.execute(
-                """INSERT INTO sources (name, base_url, feed_url, default_region, sports_scope, sports_keyword, sports_keyword_scope, exclude_keywords, status)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
+                """INSERT INTO sources (name, base_url, feed_url, default_region, sports_scope, sports_keyword, sports_keyword_scope, exclude_keywords, team_routing, status)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
                    ON CONFLICT(feed_url) DO UPDATE SET
                      name=excluded.name, base_url=excluded.base_url,
                      default_region=excluded.default_region, sports_scope=excluded.sports_scope,
                      sports_keyword=excluded.sports_keyword, sports_keyword_scope=excluded.sports_keyword_scope,
-                     exclude_keywords=excluded.exclude_keywords,
+                     exclude_keywords=excluded.exclude_keywords, team_routing=excluded.team_routing,
                      status='active'
                    """,
                 (s["name"], s.get("base_url"), s["feed_url"], s["default_region"], s.get("sports_scope"),
                  s.get("sports_keyword"), s.get("sports_keyword_scope"),
-                 "|".join(s["exclude_keywords"]) if s.get("exclude_keywords") else None),
+                 "|".join(s["exclude_keywords"]) if s.get("exclude_keywords") else None,
+                 "true" if s.get("team_routing") else None),
             )
             source_id = conn.execute(
                 "SELECT id FROM sources WHERE feed_url = ?", (s["feed_url"],)
