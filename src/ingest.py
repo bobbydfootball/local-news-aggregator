@@ -68,7 +68,7 @@ def run_ingest():
     init_db()
     with get_conn() as conn:
         sources = conn.execute(
-            "SELECT id, name, feed_url, default_region, sports_scope, sports_keyword, sports_keyword_scope, exclude_keywords, team_routing FROM sources WHERE status = 'active'"
+            "SELECT id, name, feed_url, default_region, sports_scope, sports_keyword, sports_keyword_scope, exclude_keywords, team_routing, local_keyword FROM sources WHERE status = 'active'"
         ).fetchall()
 
     total_new = 0
@@ -204,6 +204,9 @@ def ingest_source(source) -> int:
             title_matches_sports_keyword = source["sports_keyword"] and any(
                 kw.lower() in title.lower() for kw in source["sports_keyword"].split("|")
             )
+            title_matches_local_keyword = source["local_keyword"] and any(
+                kw.lower() in combined_text for kw in source["local_keyword"].split("|")
+            )
             matched_team = None
             if source["team_routing"]:
                 for team in WISCONSIN_TEAMS:
@@ -212,14 +215,30 @@ def ingest_source(source) -> int:
                         break
 
             if title_matches_sports_keyword:
-                # Local prep sports (e.g. GMToday's "PREP" prefix) takes
-                # priority over everything else, and goes to the dedicated
-                # Local Sports category rather than a specific team --
-                # keeps local prep coverage from competing with Packers/
-                # Brewers/Badgers/etc. for the same display slot budget.
+                # Local prep sports (e.g. GMToday's "PREP" prefix, CBS58's
+                # "high school") takes priority over everything else, and
+                # goes to the dedicated Local Sports category rather than a
+                # specific team -- keeps local prep coverage from competing
+                # with Packers/Brewers/Badgers/etc. for the same display
+                # slot budget. Also takes priority over local_keyword, so a
+                # Waukesha-area prep sports story still lands in Local
+                # Sports, consistent with how Freeman's own Waukesha sports
+                # coverage already works.
                 conn.execute(
                     "INSERT OR IGNORE INTO article_news_types (article_id, news_type_slug) VALUES (?, ?)",
                     (article_id, "local_sports"),
+                )
+            elif title_matches_local_keyword:
+                # Same pattern as sports_keyword -> local_sports above, just
+                # a different fixed destination: a configured place name
+                # (e.g. CBS58 saying "Waukesha") routes straight to the
+                # Waukesha category, ahead of team_routing below. A
+                # hyperlocal connection ("Waukesha native drafted by the
+                # Packers") is judged more valuable to a Waukesha reader
+                # than the team categorization would be.
+                conn.execute(
+                    "INSERT OR IGNORE INTO article_news_types (article_id, news_type_slug) VALUES (?, ?)",
+                    (article_id, "waukesha"),
                 )
             elif matched_team:
                 # A specific WI team is named and this source opted into
