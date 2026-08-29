@@ -42,41 +42,33 @@ MAX_RETRY_AFTER_WAIT_SECONDS = 60  # cap how long we'll actually wait even if
 # When a source's exclude_keywords match (e.g. "(AP)" marking wire-service
 # content, or "Daily News"/"News Graphic" marking a different GMToday paper),
 # the article is reclassified rather than using the source's normal
-# default_news_types:
-#   1. If it doesn't mention Wisconsin/Milwaukee/a WI team, it's dropped
-#      entirely -- generic national/world wire content, or another paper's
-#      out-of-area coverage, doesn't belong in a Wisconsin-focused
-#      aggregator just because it happened to run on a WI paper's site.
-#   2. Otherwise, if it's sports-flavored -> Sports, else -> State.
-#
-# WISCONSIN_TEAMS is checked for BOTH the relevance gate (#1) and the
-# sports-routing decision (#2), since a team name proves both at once.
-# GENERIC_SPORTS_KEYWORDS only affects #2 -- it never counts toward
-# relevance on its own, since a generic sports word like "golf" appearing
-# in a story with no Wisconsin connection shouldn't rescue it from being
-# dropped (that's exactly the "Florida golf story" problem this whole
-# check was built to solve).
+# default_news_types. Priority order (see ingest_source below):
+#   1. sports_keyword match (e.g. Freeman's "PREP") -> local_sports
+#   2. A specific WI team is named (if team_routing is enabled for this
+#      source) -> that team's own category, e.g. "packers"
+#   3. Wire-service marker matched, and the article mentions Wisconsin/
+#      Milwaukee/a WI team -> State (a team mention here still routes to
+#      the team category via #2 first if team_routing is on; #3 is the
+#      fallback for WI-relevant wire content that doesn't name a team)
+#   4. Wire-service marker matched, but nothing Wisconsin-relevant found
+#      -> dropped entirely (generic national/world wire content doesn't
+#      belong in a Wisconsin-focused aggregator just because it happened
+#      to run on a WI site)
+#   5. Otherwise -> the source's normal default_news_types
 WISCONSIN_TEAMS = ["packers", "brewers", "bucks", "badgers"]
-GENERIC_SPORTS_KEYWORDS = [
-    "baseball", "basketball", "football", "hockey", "soccer", "golf",
-    "tennis", "volleyball", "wrestling", "olympic", "nba", "nfl", "mlb",
-    "nhl", "ncaa", "world series", "super bowl", "stanley cup", "playoff",
-    "championship",
-]
 WISCONSIN_KEYWORDS = [
     "wisconsin", "milwaukee", "waukesha", "madison", "green bay",
     "racine", "kenosha", "appleton", "eau claire", "la crosse",
     "oshkosh", "wausau", "governor evers", "gov. evers",
 ]
 WIRE_FALLBACK_NEWS_TYPE = "state"
-WIRE_SPORTS_NEWS_TYPE = "sports"
 
 
 def run_ingest():
     init_db()
     with get_conn() as conn:
         sources = conn.execute(
-            "SELECT id, name, feed_url, default_region, sports_scope, sports_keyword, sports_keyword_scope, exclude_keywords FROM sources WHERE status = 'active'"
+            "SELECT id, name, feed_url, default_region, sports_scope, sports_keyword, sports_keyword_scope, exclude_keywords, team_routing FROM sources WHERE status = 'active'"
         ).fetchall()
 
     total_new = 0
@@ -154,23 +146,17 @@ def ingest_source(source) -> int:
             if not url or not title:
                 continue
 
-            # Wire-service content (e.g. AP stories syndicated on a local
-            # paper's site alongside their own reporting): if it has no
-            # Wisconsin relevance at all, drop it -- a story about Florida
-            # golf or national business news doesn't belong in a
-            # Wisconsin-focused aggregator just because it happened to run
-            # on a WI paper's site. WI-relevant wire content is kept and
-            # reclassified: sports-flavored -> Sports, otherwise -> State.
+            # combined_text includes the author byline (not just title +
+            # summary) since wire-service markers like "Associated Press"
+            # often only appear there, not in the visible text (e.g.
+            # Spectrum News tags AP-sourced national stories this way).
             raw_summary = entry.get("summary", "")
-            combined_text = f"{title} {raw_summary}".lower()
+            author = entry.get("author", "") or ""
+            combined_text = f"{title} {raw_summary} {author}".lower()
             is_wire = any(kw.lower() in combined_text for kw in exclude_keywords)
             wire_is_wi_relevant = is_wire and (
                 any(kw in combined_text for kw in WISCONSIN_KEYWORDS)
                 or any(kw in combined_text for kw in WISCONSIN_TEAMS)
-            )
-            wire_is_sports = is_wire and (
-                any(kw in combined_text for kw in WISCONSIN_TEAMS)
-                or any(kw in combined_text for kw in GENERIC_SPORTS_KEYWORDS)
             )
 
             existing = conn.execute("SELECT id FROM articles WHERE url = ?", (url,)).fetchone()
@@ -218,21 +204,38 @@ def ingest_source(source) -> int:
             title_matches_sports_keyword = source["sports_keyword"] and any(
                 kw.lower() in title.lower() for kw in source["sports_keyword"].split("|")
             )
+            matched_team = None
+            if source["team_routing"]:
+                for team in WISCONSIN_TEAMS:
+                    if team in combined_text:
+                        matched_team = team
+                        break
+
             if title_matches_sports_keyword:
                 # Local prep sports (e.g. GMToday's "PREP" prefix) takes
-                # priority over wire detection, and goes to the dedicated
-                # Local Sports category rather than State Sports -- keeps
-                # local prep coverage from competing with Packers/Brewers/
-                # Badgers/etc. for the same display slot budget.
+                # priority over everything else, and goes to the dedicated
+                # Local Sports category rather than a specific team --
+                # keeps local prep coverage from competing with Packers/
+                # Brewers/Badgers/etc. for the same display slot budget.
                 conn.execute(
                     "INSERT OR IGNORE INTO article_news_types (article_id, news_type_slug) VALUES (?, ?)",
                     (article_id, "local_sports"),
                 )
-            elif is_wire:
-                target_type = WIRE_SPORTS_NEWS_TYPE if wire_is_sports else WIRE_FALLBACK_NEWS_TYPE
+            elif matched_team:
+                # A specific WI team is named and this source opted into
+                # team routing -- goes straight to that team's category,
+                # taking priority over wire-fallback logic below (a
+                # Packers story co-bylined "Associated Press" should still
+                # land under Packers, not get stuck in the generic State
+                # wire-fallback).
                 conn.execute(
                     "INSERT OR IGNORE INTO article_news_types (article_id, news_type_slug) VALUES (?, ?)",
-                    (article_id, target_type),
+                    (article_id, matched_team),
+                )
+            elif is_wire:
+                conn.execute(
+                    "INSERT OR IGNORE INTO article_news_types (article_id, news_type_slug) VALUES (?, ?)",
+                    (article_id, WIRE_FALLBACK_NEWS_TYPE),
                 )
             else:
                 for nt_slug in news_types:
