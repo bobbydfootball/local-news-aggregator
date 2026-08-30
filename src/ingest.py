@@ -170,12 +170,30 @@ def ingest_source(source) -> int:
                     conn.execute("DELETE FROM articles WHERE id = ?", (existing["id"],))
                 continue
 
+            summary = clean_summary(entry.get("summary", ""))
+            image_url = extract_image(entry)
+            published_at = extract_published(entry)
+
             if existing:
                 article_id = existing["id"]
+                # Refresh these fields on every run, same as category/region
+                # below -- previously this branch only grabbed the existing
+                # ID and never touched published_at/image_url/summary again.
+                # That meant if any of them came out wrong (NULL, a bad
+                # parse, anything) on an article's very first ingestion, it
+                # stayed wrong forever, even though the article kept getting
+                # correctly re-processed for everything else on every
+                # subsequent run. A stuck bad published_at is especially
+                # damaging here since it silently fails the freshness
+                # filter with no visible error -- this is what caused
+                # correctly-fetched, correctly-categorized official-feed
+                # articles to be invisible in the app despite everything
+                # upstream reporting success.
+                conn.execute(
+                    "UPDATE articles SET summary = ?, image_url = ?, published_at = ? WHERE id = ?",
+                    (summary, image_url, published_at, article_id),
+                )
             else:
-                summary = clean_summary(entry.get("summary", ""))
-                image_url = extract_image(entry)
-                published_at = extract_published(entry)
                 cur = conn.execute(
                     """INSERT INTO articles
                        (source_id, title, url, summary, image_url, published_at, fetched_at)
