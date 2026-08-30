@@ -20,6 +20,7 @@ import time
 import random
 from datetime import datetime, timezone
 from time import mktime
+from urllib.parse import urlparse
 from src.db import get_conn, init_db
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -99,10 +100,29 @@ def fetch_with_retry(feed_url: str):
 
     If the server includes a Retry-After header, that real value is used
     instead of our fixed guess -- the server is telling us exactly how long
-    to wait, which is more reliable than assuming."""
+    to wait, which is more reliable than assuming.
+
+    Headers beyond User-Agent (Accept, Referer) are included since some
+    bot-detection systems check for these too, not just the UA string.
+    Referer is derived from the feed URL's own domain (not hardcoded) since
+    sources span many different publisher domains -- it points at that
+    specific publisher's homepage, same as a real browser visiting that
+    site would send. Worth being honest that this may not fully resolve
+    429s if they're actually caused by shared-IP-range rate limiting on
+    GitHub Actions' runners (used by many unrelated projects hitting the
+    same publisher infrastructure) rather than by request-signature
+    detection -- header spoofing wouldn't fix that kind of limiting."""
+    parsed_url = urlparse(feed_url)
+    referer = f"{parsed_url.scheme}://{parsed_url.netloc}/"
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml,application/xml",
+        "Referer": referer,
+    }
+
     resp = None
     for attempt in range(MAX_RETRIES_ON_429 + 1):
-        resp = requests.get(feed_url, headers={"User-Agent": USER_AGENT}, timeout=15)
+        resp = requests.get(feed_url, headers=headers, timeout=15)
         if resp.status_code == 429 and attempt < MAX_RETRIES_ON_429:
             retry_after = resp.headers.get("Retry-After")
             if retry_after and retry_after.isdigit():
