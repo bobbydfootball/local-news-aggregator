@@ -9,14 +9,48 @@
 # -- the taxonomy was restructured so every article resolves to exactly one
 # category (no more cross-listing/duplication across sections).
 #
-# `sports_scope` only applies when the news type is "sports".
+# CONSISTENCY POLICY across every source below, applied uniformly rather
+# than per-source ad hoc:
+#   - "Catch-all" categories (State, World) are broad by design, so their
+#     sources get the full toolkit: team_routing, local_keyword, and
+#     exclude_keywords -- any of these signals means the article belongs
+#     somewhere more specific than the generic catch-all.
+#   - "Specific-identity" categories (Waukesha, Politics, Events, each
+#     individual team) already have a clear editorial focus, so their
+#     sources do NOT get team_routing/local_keyword -- a stray team mention
+#     in a Politics story about stadium funding shouldn't hijack it into
+#     the Packers tab; that source's own focus should win.
+#   - exclude_keywords (wire-content filtering) is the one exception that
+#     cuts across both kinds -- it's a relevance filter, not a "find a more
+#     specific home" mechanism, so it's applied to any source that
+#     plausibly mixes in wire content, hyperlocal or not (e.g. Freeman).
+#   - EXCEPTION: Fox News (World) deliberately does NOT get exclude_keywords
+#     -- that mechanism drops non-Wisconsin content, which is exactly what
+#     World is supposed to hold. Applying it would gut the category.
 #
-# `sports_keyword` / `sports_keyword_scope` (optional): if a feed's title
-# contains this keyword, that specific article is reclassified as sports
-# (with sports_keyword_scope) instead of getting this source's normal
-# default_news_types. This is how Freeman's single combined feed splits
-# into "Waukesha" (everything else) and "Sports" (PREP-tagged articles)
-# without a second network request.
+# `sports_keyword` (optional): if a feed's title contains this keyword,
+# that specific article is reclassified as Local Sports instead of getting
+# this source's normal default_news_types. This is how Freeman's single
+# combined feed splits into "Waukesha" (everything else) and "Sports"
+# (PREP-tagged articles) without a second network request, and how CBS58's
+# branded prep-football segments get pulled out of State.
+#
+# `team_routing` (optional, boolean): if true, an article mentioning a
+# specific WI team (Packers/Brewers/Bucks/Badgers) by name is routed
+# directly to that team's category, ahead of every other rule except
+# sports_keyword and local_keyword.
+#
+# `local_keyword` (optional): "|"-separated place names (e.g.
+# "Waukesha|Delafield"); if title+summary contains any, the article is
+# routed to the waukesha category -- same pattern as sports_keyword but a
+# different fixed destination.
+#
+# `exclude_keywords` (optional): "|"-separated keywords; if title+summary+
+# author contains any, the article is treated as wire-service content.
+# It's then checked for Wisconsin relevance (place names or a WI team
+# mentioned): if relevant, it's kept and reclassified to State; if not,
+# it's dropped entirely rather than cluttering a Wisconsin-focused
+# aggregator with generic national wire content.
 
 sources:
   # --- Waukesha (City + County together) ---
@@ -25,18 +59,26 @@ sources:
     feed_url: "https://www.gmtoday.com/search/?f=rss&t=article&c=the_freeman/news&l=100&s=start_time&sd=desc"
     default_region: waukesha-city
     default_news_types: [waukesha]
+    exclude_keywords: ["(AP)", "Associated Press", "Daily News", "News Graphic"]
 
   - name: "Wisconsin Newspaper Association Wire"
     base_url: "https://www.wnanews.com/"
     feed_url: "https://www.wnanews.com/feed"
     default_region: waukesha-county
     default_news_types: [waukesha]
+    # No exclude_keywords: this source aggregates Wisconsin newspapers
+    # specifically (by the association's own charter), unlike Freeman's
+    # feed which is confirmed to mix in genuine AP wire content. No
+    # evidence this one carries non-WI-relevant content that needs
+    # filtering -- revisit if that turns out to be wrong.
 
   - name: "Waukesha Freeman (GMToday) - Sports Section"
     base_url: "https://www.gmtoday.com/the_freeman/sports/"
     feed_url: "https://www.gmtoday.com/search/?f=rss&t=article&c=the_freeman/sports&l=50&s=start_time&sd=desc"
     default_region: waukesha-city
     default_news_types: [local_sports]
+    # Already scoped to sports specifically via the BLOX c= section filter
+    # -- no keyword mechanisms needed.
 
   # --- State (Milwaukee County news + general statewide interest) ---
   - name: "CBS58 Milwaukee"
@@ -45,15 +87,24 @@ sources:
     default_region: milwaukee-county
     default_news_types: [state]
     sports_keyword: "high school|Friday Night Rivals"
-    sports_keyword_scope: local_teams
     team_routing: true
     local_keyword: ["Waukesha", "Delafield", "Oconomowoc", "Sussex"]
+    exclude_keywords: ["Associated Press", "CBS News"]
+    # "CBS News" confirmed as a real byline category on cbs58.com (they
+    # have a dedicated author bio page for it), same pattern as "Associated
+    # Press" on Spectrum -- but unlike Spectrum's feed, CBS58's raw RSS
+    # item structure wasn't directly inspected, so whether this byline
+    # actually reaches the feed's exposed fields is unconfirmed. Worth
+    # checking results after deploy.
 
   - name: "Milwaukee Independent"
     base_url: "https://www.milwaukeeindependent.com/"
     feed_url: "https://www.milwaukeeindependent.com/feed/"
     default_region: milwaukee-county
     default_news_types: [state]
+    team_routing: true
+    local_keyword: ["Waukesha", "Delafield", "Oconomowoc", "Sussex"]
+    exclude_keywords: ["Associated Press"]
 
   - name: "Spectrum News 1 Wisconsin - Local Headlines"
     base_url: "https://spectrumnews1.com/wi/milwaukee/news"
@@ -62,8 +113,12 @@ sources:
     default_news_types: [state]
     exclude_keywords: ["Associated Press"]
     team_routing: true
+    local_keyword: ["Waukesha", "Delafield", "Oconomowoc", "Sussex"]
 
   # --- Politics & Government (statewide) ---
+  # No team_routing/local_keyword on any source in this section -- Politics
+  # is a specific-identity category, so its own editorial focus should win
+  # over an incidental team/place mention (see policy note at top of file).
   - name: "Wisconsin Examiner"
     base_url: "https://wisconsinexaminer.com/"
     feed_url: "https://wisconsinexaminer.com/feed/"
@@ -100,6 +155,11 @@ sources:
     feed_url: "https://moxie.foxnews.com/google-publisher/latest.xml"
     default_region: wisconsin
     default_news_types: [world]
+    team_routing: true
+    local_keyword: ["Waukesha", "Delafield", "Oconomowoc", "Sussex"]
+    # Deliberately NO exclude_keywords here -- that mechanism drops
+    # non-Wisconsin content, which is exactly what World is supposed to
+    # hold. Applying it would gut the category by design.
 
   # --- Packers ---
   - name: "Green Bay Packers (Official)"
@@ -107,7 +167,6 @@ sources:
     feed_url: "https://www.packers.com/rss/news"
     default_region: wisconsin
     default_news_types: [packers]
-    sports_scope: state_teams
 
   # --- Brewers ---
   - name: "Milwaukee Brewers (Official)"
@@ -115,7 +174,6 @@ sources:
     feed_url: "https://www.mlb.com/brewers/feeds/news/rss.xml"
     default_region: wisconsin
     default_news_types: [brewers]
-    sports_scope: state_teams
 
   # --- Bucks ---
   - name: "Milwaukee Bucks - Brew Hoop (SB Nation)"
@@ -123,7 +181,6 @@ sources:
     feed_url: "https://www.brewhoop.com/rss/current.xml"
     default_region: wisconsin
     default_news_types: [bucks]
-    sports_scope: state_teams
 
   # --- Badgers (all sports combined into one category) ---
   - name: "Wisconsin State Journal (madison.com) - Badgers"
@@ -131,56 +188,46 @@ sources:
     feed_url: "https://madison.com/search/?f=rss&t=article&c=sports/college&l=50&s=start_time&sd=desc"
     default_region: wisconsin
     default_news_types: [badgers]
-    sports_scope: state_teams
 
   - name: "Wisconsin Badgers Football (Official)"
     base_url: "https://uwbadgers.com/sports/football"
     feed_url: "https://uwbadgers.com/rss?path=football"
     default_region: wisconsin
     default_news_types: [badgers]
-    sports_scope: state_teams
 
   - name: "Wisconsin Badgers Men's Basketball (Official)"
     base_url: "https://uwbadgers.com/sports/mens-basketball"
     feed_url: "https://uwbadgers.com/rss?path=mbball"
     default_region: wisconsin
     default_news_types: [badgers]
-    sports_scope: state_teams
 
   - name: "Wisconsin Badgers Women's Basketball (Official)"
     base_url: "https://uwbadgers.com/sports/womens-basketball"
     feed_url: "https://uwbadgers.com/rss?path=wbball"
     default_region: wisconsin
     default_news_types: [badgers]
-    sports_scope: state_teams
 
   - name: "Wisconsin Badgers Men's Hockey (Official)"
     base_url: "https://uwbadgers.com/sports/mens-ice-hockey"
     feed_url: "https://uwbadgers.com/rss?path=mhockey"
     default_region: wisconsin
     default_news_types: [badgers]
-    sports_scope: state_teams
 
   - name: "Wisconsin Badgers Women's Hockey (Official)"
     base_url: "https://uwbadgers.com/sports/womens-ice-hockey"
     feed_url: "https://uwbadgers.com/rss?path=whockey"
     default_region: wisconsin
     default_news_types: [badgers]
-    sports_scope: state_teams
 
   - name: "Wisconsin Badgers Volleyball (Official)"
     base_url: "https://uwbadgers.com/sports/womens-volleyball"
     feed_url: "https://uwbadgers.com/rss?path=wvball"
     default_region: wisconsin
     default_news_types: [badgers]
-    sports_scope: state_teams
-
-  # --- State: general statewide interest, non-political (Milwaukee
-  # sources above, plus Spectrum News 1's Local Headlines feed further up,
-  # both routed here by default unless team_routing/exclude_keywords send
-  # a specific article elsewhere).
 
   # --- Events ---
+  # No team_routing/local_keyword here either -- Events is a
+  # specific-identity category, same reasoning as Politics above.
   - name: "Shepherd Express - Brew City Buzz"
     base_url: "https://shepherdexpress.com/upcoming-events"
     feed_url: "https://shepherdexpress.com/upcoming-events/index.rss"
