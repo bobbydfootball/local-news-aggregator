@@ -27,6 +27,12 @@
 #   - EXCEPTION: Fox News (World) deliberately does NOT get exclude_keywords
 #     -- that mechanism drops non-Wisconsin content, which is exactly what
 #     World is supposed to hold. Applying it would gut the category.
+#   - A general/mixed "Sports" section (not a dedicated single-team feed)
+#     gets team_routing to pull out specific team mentions, with its
+#     fallback set to whichever category honestly reflects the rest of its
+#     content -- State for a general-interest paper's Sports section
+#     (Capital Times), Local Sports for a section already scoped to
+#     prep/local content by the source itself (Freeman).
 #
 # `sports_keyword` (optional): if a feed's title contains this keyword,
 # that specific article is reclassified as Local Sports instead of getting
@@ -77,8 +83,12 @@ sources:
     feed_url: "https://www.gmtoday.com/search/?f=rss&t=article&c=the_freeman/sports&l=50&s=start_time&sd=desc"
     default_region: waukesha-city
     default_news_types: [local_sports]
-    # Already scoped to sports specifically via the BLOX c= section filter
-    # -- no keyword mechanisms needed.
+    team_routing: true
+    # Fallback stays Local Sports, not State -- unlike Capital Times'
+    # general Sports section, this one is already reliably scoped to
+    # prep/local content via the BLOX c=the_freeman/sports section filter.
+    # team_routing still pulls out anything mentioning a specific WI team
+    # (e.g. a Waukesha-area athlete signed by the Packers).
 
   # --- State (Milwaukee County news + general statewide interest) ---
   - name: "CBS58 Milwaukee"
@@ -114,6 +124,29 @@ sources:
     exclude_keywords: ["Associated Press"]
     team_routing: true
     local_keyword: ["Waukesha", "Delafield", "Oconomowoc", "Sussex"]
+
+  - name: "Capital Times - News"
+    base_url: "https://captimes.com/news/"
+    feed_url: "https://captimes.com/search/?f=rss&t=article&c=news&l=50&s=start_time&sd=desc"
+    default_region: wisconsin
+    default_news_types: [state]
+    exclude_keywords: ["Associated Press"]
+    team_routing: true
+    local_keyword: ["Waukesha", "Delafield", "Oconomowoc", "Sussex"]
+
+  - name: "Capital Times - Sports"
+    base_url: "https://captimes.com/sports/"
+    feed_url: "https://captimes.com/search/?f=rss&t=article&c=sports&l=50&s=start_time&sd=desc"
+    default_region: wisconsin
+    default_news_types: [state]
+    team_routing: true
+    # Fallback is State, not Badgers -- this is a general "Sports" section
+    # (confirmed to mix genuine Badgers coverage with local Madison-area
+    # prep sports, e.g. a "Madison East" high school story observed
+    # alongside Badgers volleyball on their homepage), not a dedicated
+    # Badgers feed. team_routing pulls out anything mentioning a specific
+    # WI team; everything else lands in State as the honest catch-all
+    # rather than being mis-tagged Badgers by default.
 
   # --- Politics & Government (statewide) ---
   # No team_routing/local_keyword on any source in this section -- Politics
@@ -183,12 +216,6 @@ sources:
     default_news_types: [bucks]
 
   # --- Badgers (all sports combined into one category) ---
-  - name: "Wisconsin State Journal (madison.com) - Badgers"
-    base_url: "https://madison.com/sports/college/"
-    feed_url: "https://madison.com/search/?f=rss&t=article&c=sports/college&l=50&s=start_time&sd=desc"
-    default_region: wisconsin
-    default_news_types: [badgers]
-
   - name: "Wisconsin Badgers Football (Official)"
     base_url: "https://uwbadgers.com/sports/football"
     feed_url: "https://uwbadgers.com/rss?path=football"
