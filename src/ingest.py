@@ -68,7 +68,7 @@ def run_ingest():
     init_db()
     with get_conn() as conn:
         sources = conn.execute(
-            "SELECT id, name, feed_url, default_region, sports_scope, sports_keyword, sports_keyword_scope, exclude_keywords, team_routing, local_keyword FROM sources WHERE status = 'active'"
+            "SELECT id, name, feed_url, default_region, sports_keyword, exclude_keywords, team_routing, local_keyword FROM sources WHERE status = 'active'"
         ).fetchall()
 
     total_new = 0
