@@ -2,13 +2,10 @@
 # `color` is a hex value used for the Streamlit UI accent per section.
 #
 # This taxonomy mixes geographic categories (Waukesha) with topical
-# categories (Local Sports, Packers, Brewers, Bucks, Badgers, State,
-# Politics & Government, World, Events) by deliberate choice -- Waukesha
-# acts as an "everything local to Waukesha" bucket so a single article
-# never needs to appear in more than one section. Milwaukee County content
-# lives under "State" (no dedicated Milwaukee category). Sports is split
-# into Local Sports plus one category per major team so no single team's
-# volume crowds out the others.
+# categories (Sports, State, Politics & Government, Events) by deliberate
+# choice -- Waukesha acts as an "everything local to Waukesha" bucket so a
+# single article never needs to appear in more than one section. Milwaukee
+# County content lives under "State" (no dedicated Milwaukee category).
 #
 # IMPORTANT: renaming/removing a category here now cleans up automatically
 # -- load_config.py deletes old news_types rows (and their article tags)
@@ -59,7 +56,8 @@ news_types:
 # Regions form a hierarchy: state > county > city.
 # Still used as the second-level grouping within each news type above --
 # e.g. the "Waukesha" category groups its articles into City of Waukesha /
-# Waukesha County sub-sections.
+# Waukesha County sub-sections; "Sports" groups into City of Waukesha
+# (Freeman PREP) vs Wisconsin (pro/college teams).
 regions:
   - slug: waukesha-city
     name: "City of Waukesha"
@@ -81,19 +79,3 @@ regions:
     level: state
     parent_slug: null
     sort_order: 4
-
-# Sports uses a separate axis (local team vs. state pro/college team)
-# rather than the geography hierarchy above.
-sports_scopes:
-  - slug: local_teams
-    name: "Local Teams"
-    sort_order: 1
-  - slug: state_teams
-    name: "State Pro & College Teams"
-    sort_order: 2
-
-state_teams:
-  - "Milwaukee Brewers"
-  - "Milwaukee Bucks"
-  - "Green Bay Packers"
-  - "Wisconsin Badgers"
