@@ -26,13 +26,7 @@
 #     plausibly mixes in wire content, hyperlocal or not (e.g. Freeman).
 #   - EXCEPTION: Fox News (World) deliberately does NOT get exclude_keywords
 #     -- that mechanism drops non-Wisconsin content, which is exactly what
-#     World is supposed to hold. Applying it would gut the category.
-#   - A general/mixed "Sports" section (not a dedicated single-team feed)
-#     gets team_routing to pull out specific team mentions, with its
-#     fallback set to whichever category honestly reflects the rest of its
-#     content -- State for a general-interest paper's Sports section
-#     (Capital Times), Local Sports for a section already scoped to
-#     prep/local content by the source itself (Freeman).
+#     World is supposed to hold. Applying it there would gut the category.
 #
 # `sports_keyword` (optional): if a feed's title contains this keyword,
 # that specific article is reclassified as Local Sports instead of getting
