@@ -56,7 +56,27 @@ MAX_RETRY_AFTER_WAIT_SECONDS = 60  # cap how long we'll actually wait even if
 #      belong in a Wisconsin-focused aggregator just because it happened
 #      to run on a WI site)
 #   5. Otherwise -> the source's normal default_news_types
-WISCONSIN_TEAMS = ["packers", "brewers", "bucks", "badgers"]
+WISCONSIN_TEAM_KEYWORDS = {
+    # keyword -> the category slug it should route to. Not a flat list,
+    # since "badger"/"packer" (singular) are valid, safe keywords to match
+    # on but are NOT themselves valid category slugs -- only the plural
+    # forms are. Using a flat list here would have silently tried to
+    # insert an invalid slug like "badger" and failed the insert.
+    #
+    # "brewer" and "buck" deliberately excluded despite being the natural
+    # singular forms: "brewer" is an ordinary word for anyone who brews
+    # beer (Milwaukee has an active craft brewing scene that gets regular
+    # local coverage), and "buck" is common in unrelated senses (money
+    # slang, the animal, "buck a trend"). Both would generate real false
+    # positives, unlike "badger"/"packer" which don't have a comparably
+    # common unrelated everyday usage.
+    "packers": "packers",
+    "packer": "packers",
+    "brewers": "brewers",
+    "bucks": "bucks",
+    "badgers": "badgers",
+    "badger": "badgers",
+}
 WISCONSIN_KEYWORDS = [
     "wisconsin", "milwaukee", "waukesha", "madison", "green bay",
     "racine", "kenosha", "appleton", "eau claire", "la crosse",
@@ -176,7 +196,7 @@ def ingest_source(source) -> int:
             is_wire = any(kw.lower() in combined_text for kw in exclude_keywords)
             wire_is_wi_relevant = is_wire and (
                 any(kw in combined_text for kw in WISCONSIN_KEYWORDS)
-                or any(kw in combined_text for kw in WISCONSIN_TEAMS)
+                or any(kw in combined_text for kw in WISCONSIN_TEAM_KEYWORDS)
             )
 
             existing = conn.execute("SELECT id FROM articles WHERE url = ?", (url,)).fetchone()
@@ -247,9 +267,9 @@ def ingest_source(source) -> int:
             )
             matched_team = None
             if source["team_routing"]:
-                for team in WISCONSIN_TEAMS:
-                    if team in combined_text:
-                        matched_team = team
+                for keyword, slug in WISCONSIN_TEAM_KEYWORDS.items():
+                    if keyword in combined_text:
+                        matched_team = slug
                         break
 
             if title_matches_sports_keyword:
