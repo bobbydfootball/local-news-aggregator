@@ -15,6 +15,15 @@ from datetime import datetime, timedelta, timezone
 from src.db import get_conn, init_db
 
 MAX_ARTICLE_AGE_DAYS = 2
+SPORTS_MAX_ARTICLE_AGE_DAYS = 6   # Packers/Brewers/Bucks/Badgers/Local Sports
+                                  # get a longer window -- dedicated official
+                                  # feeds publish far less often than general
+                                  # news sources (confirmed: an off-season UW
+                                  # Badgers feed can go 3+ weeks between
+                                  # posts), so a strict 2-day cutoff was
+                                  # starving out genuinely relevant, correctly
+                                  # -fetched content from those feeds.
+SPORTS_CATEGORIES = {"packers", "brewers", "bucks", "badgers", "local_sports"}
 
 st.set_page_config(page_title="Bo6's News Aggregator", page_icon="📰", layout="wide")
 
@@ -110,16 +119,24 @@ components.html(
 # st.set_page_config's page_icon/page_title only control the browser tab
 # favicon/title -- iOS Safari ignores both for the home screen and instead
 # looks for a <link rel="apple-touch-icon"> tag (icon) and a
-# <meta name="apple-mobile-web-app-title"> tag (name), neither of which
-# Streamlit has a native way to set. Same cross-frame trick as the focus
-# grabber above: reach into the real parent document and insert both via
-# JS. Checks for existing tags first so repeated Streamlit reruns (which
-# happen on every user interaction) don't pile up duplicates in the head.
+# <meta name="apple-mobile-web-app-title"> tag (name).
+#
+# This uses plain st.markdown(unsafe_allow_html=True) rather than
+# components.html() -- an earlier attempt via components.html() (a
+# sandboxed iframe reaching into window.parent.document) failed, matching
+# the same failure we already saw with the keyboard-focus fix using that
+# same technique. st.markdown's HTML injection is what's actually worked
+# reliably elsewhere in this app (hiding the Streamlit header, coloring
+# the tabs) since it inserts real DOM nodes into the actual page rather
+# than being trapped in an isolated iframe. These tags aren't strictly
+# inside <head> this way, but browsers generally still honor link/meta
+# tags wherever they land in the DOM.
 st.markdown(
     '<link rel="apple-touch-icon" sizes="180x180" href="app/static/apple-touch-icon.png">'
     '<meta name="apple-mobile-web-app-title" content="Bo6 News">',
     unsafe_allow_html=True,
 )
+
 
 @st.cache_data(ttl=300)
 def load_news_types():
@@ -173,7 +190,8 @@ def load_articles(news_type_slug: str):
                 (news_type_slug,),
             ).fetchall()
         else:
-            cutoff = (datetime.now(timezone.utc) - timedelta(days=MAX_ARTICLE_AGE_DAYS)).isoformat()
+            max_age = SPORTS_MAX_ARTICLE_AGE_DAYS if news_type_slug in SPORTS_CATEGORIES else MAX_ARTICLE_AGE_DAYS
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=max_age)).isoformat()
             rows = conn.execute(
                 """
                 SELECT a.id, a.title, a.url, a.summary, a.image_url, a.published_at,
