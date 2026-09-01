@@ -84,6 +84,55 @@ WISCONSIN_KEYWORDS = [
 ]
 WIRE_FALLBACK_NEWS_TYPE = "state"
 
+# --- Prep sports school-name routing (supplements sports_keyword) ---
+#
+# Background: a bare "high school" keyword match (the original
+# sports_keyword mechanism) turned out to false-positive on genuine
+# non-sports CBS58 stories that simply name a school, e.g. "Lincoln
+# Avenue kids begin school year at Pulaski High School after fire
+# destroyed building" and "Nicolet Union High School rolls out the red
+# carpet to welcome students back". Neither is a sports story. This is
+# why sports_keyword clauses now support an optional "&qualifier1,
+# qualifier2,..." suffix requiring a sports-context word alongside the
+# primary phrase (see ingest_source below) -- but "high school" alone,
+# even qualified, still misses genuine prep recaps that never say the
+# literal words "high school" at all, e.g. "Catholic Memorial, Greenfield
+# among Thursday night winners as Week 2 kicks off".
+#
+# The two lists below close that gap using actual school names from the
+# WIAA conferences covering CBS58's Milwaukee/Waukesha coverage area
+# (Greater Metro, North Shore, Parkland, Milwaukee City), split by
+# collision risk with ordinary (non-sports) local news:
+#
+# TIER 1 -- distinctive names, safe to match on their own (combined with
+# a sports qualifier word, same as any other sports_keyword clause).
+#
+# TIER 2 -- names that are also real town/village names or otherwise
+# collide with ordinary local coverage (confirmed in CBS58's own feed:
+# "Marquette wins overtime thriller..." is Marquette University
+# basketball, not Marquette University High School; "Oak Creek
+# dealership sued..." is ordinary local news). These are NOT matched on
+# their own, even with a qualifier -- they only count as a signal when
+# they appear alongside a Tier 1 name in the same title, since two named
+# schools sharing a headline is itself strong evidence of a prep
+# matchup. Revisit/expand this list as new collisions are found.
+PREP_SCHOOLS_TIER1 = [
+    "nicolet", "cedarburg", "pewaukee", "divine savior holy angels",
+    "whitefish bay", "sussex hamilton", "menomonee falls",
+    "new berlin eisenhower", "new berlin west", "waukesha north",
+    "waukesha south", "wisconsin lutheran", "milwaukee lutheran",
+    "catholic memorial", "pius xi", "brookfield central", "brookfield east",
+    "nathan hale", "wauwatosa east", "wauwatosa west", "west allis central",
+]
+PREP_SCHOOLS_TIER2 = [
+    "marquette", "oak creek", "franklin", "greendale", "germantown",
+    "homestead", "grafton", "slinger", "hartford", "shorewood",
+]
+SPORTS_QUALIFIERS = [
+    "score", "beat", "beats", "win", "wins", "won", "winners", "loses",
+    "lost", "vs.", "vs", "game", "tournament",
+]
+
 
 def run_ingest():
     init_db()
@@ -259,9 +308,57 @@ def ingest_source(source) -> int:
             conn.execute("DELETE FROM article_news_types WHERE article_id = ?", (article_id,))
             conn.execute("DELETE FROM article_regions WHERE article_id = ?", (article_id,))
 
-            title_matches_sports_keyword = source["sports_keyword"] and any(
-                kw.lower() in title.lower() for kw in source["sports_keyword"].split("|")
-            )
+            title_lower = title.lower()
+
+            # sports_keyword clauses are "|"-separated. Each clause is
+            # either a bare phrase (matches on its own, e.g. CBS58's
+            # branded "Friday Night Rivals" segment name -- unambiguous,
+            # no qualifier needed) or "primary&qual1,qual2,..." meaning
+            # the primary phrase only counts as a sports match if at
+            # least one qualifier word is ALSO present in the title. This
+            # exists because a bare "high school" match was
+            # false-positiving on real non-sports stories that simply
+            # name a school, e.g. "...Pulaski High School after fire
+            # destroyed building" and "Nicolet Union High School rolls
+            # out the red carpet to welcome students back" -- neither is
+            # a sports story, but both contain the literal phrase.
+            title_matches_sports_keyword = False
+            if source["sports_keyword"]:
+                for clause in source["sports_keyword"].split("|"):
+                    if "&" in clause:
+                        primary, quals_str = clause.split("&", 1)
+                        qualifiers = quals_str.split(",")
+                        if primary.lower() in title_lower and any(
+                            q.lower() in title_lower for q in qualifiers
+                        ):
+                            title_matches_sports_keyword = True
+                            break
+                    else:
+                        if clause.lower() in title_lower:
+                            title_matches_sports_keyword = True
+                            break
+
+            # Supplemental check: known prep school names, for headlines
+            # that never say "high school" at all (e.g. "Catholic
+            # Memorial, Greenfield among Thursday night winners as Week 2
+            # kicks off"). A Tier 1 (distinctive, low collision risk)
+            # school name counts as a sports match if EITHER a sports
+            # qualifier word is also present, OR a Tier 2 (collision-risk
+            # -- also a real town/village name) school name is also
+            # present, since two named schools sharing a headline is
+            # itself strong evidence of a prep matchup. Tier 2 names are
+            # never matched alone, even with a qualifier -- confirmed
+            # collisions in CBS58's own feed include "Marquette wins
+            # overtime thriller..." (Marquette University basketball, not
+            # the high school) and "Oak Creek dealership sued..."
+            # (ordinary local news, not sports).
+            if not title_matches_sports_keyword:
+                tier1_present = any(name in title_lower for name in PREP_SCHOOLS_TIER1)
+                tier2_present = any(name in title_lower for name in PREP_SCHOOLS_TIER2)
+                has_qualifier = any(q in title_lower for q in SPORTS_QUALIFIERS)
+                if tier1_present and (has_qualifier or tier2_present):
+                    title_matches_sports_keyword = True
+
             title_matches_local_keyword = source["local_keyword"] and any(
                 kw.lower() in combined_text for kw in source["local_keyword"].split("|")
             )
