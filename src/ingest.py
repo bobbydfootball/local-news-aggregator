@@ -15,6 +15,7 @@ Usage: python -m src.ingest
 """
 
 import feedparser
+import re
 import requests
 import time
 import random
@@ -134,6 +135,37 @@ SPORTS_QUALIFIERS = [
 ]
 
 
+BLOX_ARTICLE_ID_PATTERN = re.compile(
+    r"article_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
+
+
+def compute_content_hash(url: str) -> str:
+    """Extract a stable per-article identifier from a URL, used for
+    dedup instead of the raw URL.
+
+    Discovered via a real duplicate: GMToday/BLOX (used by both Freeman
+    and Capital Times) allows an article's SEO slug to change after
+    publication -- e.g. a short working title "A transformative
+    experience" edited to the fuller "...Waukesha resident celebrates
+    50th birthday with donation to Locks of Love" -- while the
+    underlying "article_<uuid>.html" identifier stays the same. The
+    feed re-serves the article under the new URL, and since dedup was
+    previously keyed on the full URL, the same story got inserted
+    twice under two different slugs.
+
+    BLOX article URLs end in a stable "article_<uuid>.html" segment
+    regardless of the slug preceding it -- that's what's extracted and
+    matched on here instead. Sources not on BLOX (no matching pattern)
+    fall back to the raw URL, i.e. unchanged behavior from before this
+    fix.
+    """
+    match = BLOX_ARTICLE_ID_PATTERN.search(url)
+    if match:
+        return match.group(0)
+    return url
+
+
 def run_ingest():
     init_db()
     with get_conn() as conn:
@@ -248,7 +280,10 @@ def ingest_source(source) -> int:
                 or any(kw in combined_text for kw in WISCONSIN_TEAM_KEYWORDS)
             )
 
-            existing = conn.execute("SELECT id FROM articles WHERE url = ?", (url,)).fetchone()
+            content_hash = compute_content_hash(url)
+            existing = conn.execute(
+                "SELECT id FROM articles WHERE content_hash = ?", (content_hash,)
+            ).fetchone()
 
             if is_wire and not wire_is_wi_relevant:
                 if existing:
@@ -278,18 +313,24 @@ def ingest_source(source) -> int:
                 # correctly-fetched, correctly-categorized official-feed
                 # articles to be invisible in the app despite everything
                 # upstream reporting success.
+                # title and url are refreshed here too, not just
+                # summary/image_url/published_at -- a changed slug (the
+                # exact thing that caused the Freeman duplicate bug) is
+                # a changed title in practice, so this keeps the stored
+                # article pointing at the current live URL and headline
+                # instead of a stale pre-edit version.
                 conn.execute(
-                    "UPDATE articles SET summary = ?, image_url = ?, published_at = ? WHERE id = ?",
-                    (summary, image_url, published_at, article_id),
+                    "UPDATE articles SET title = ?, url = ?, summary = ?, image_url = ?, published_at = ?, content_hash = ? WHERE id = ?",
+                    (title, url, summary, image_url, published_at, content_hash, article_id),
                 )
             else:
                 cur = conn.execute(
                     """INSERT INTO articles
-                       (source_id, title, url, summary, image_url, published_at, fetched_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                       (source_id, title, url, summary, image_url, published_at, fetched_at, content_hash)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         source["id"], title, url, summary, image_url, published_at,
-                        datetime.now(timezone.utc).isoformat(),
+                        datetime.now(timezone.utc).isoformat(), content_hash,
                     ),
                 )
                 article_id = cur.lastrowid
@@ -435,7 +476,6 @@ def clean_summary(raw_html: str) -> str:
     give short excerpts, not full text, so this is just cleanup, not
     the copyright safeguard -- that's the fact that we never fetch/store
     full article bodies at all."""
-    import re
     text = re.sub("<[^<]+?>", "", raw_html or "").strip()
     if len(text) > MAX_SUMMARY_CHARS:
         text = text[:MAX_SUMMARY_CHARS].rsplit(" ", 1)[0] + "..."
