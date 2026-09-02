@@ -79,16 +79,6 @@ sources:
     default_region: waukesha-city
     default_news_types: [waukesha]
     exclude_keywords: ["(AP)", "Associated Press", "Daily News", "News Graphic"]
-  - name: "Wisconsin Newspaper Association Wire"
-    base_url: "https://www.wnanews.com/"
-    feed_url: "https://www.wnanews.com/feed"
-    default_region: waukesha-county
-    default_news_types: [waukesha]
-    # No exclude_keywords: this source aggregates Wisconsin newspapers
-    # specifically (by the association's own charter), unlike Freeman's
-    # feed which is confirmed to mix in genuine AP wire content. No
-    # evidence this one carries non-WI-relevant content that needs
-    # filtering -- revisit if that turns out to be wrong.
   - name: "Waukesha Freeman (GMToday) - Sports Section"
     base_url: "https://www.gmtoday.com/the_freeman/sports/"
     feed_url: "https://www.gmtoday.com/search/?f=rss&t=article&c=the_freeman/sports&l=50&s=start_time&sd=desc"
