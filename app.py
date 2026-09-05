@@ -1,6 +1,5 @@
 """
 Streamlit frontend for the local news aggregator.
-
 Layout: one tab per news category (Waukesha, Sports, State, etc.), each
 color-coded to match the category's color from news_types. Each tab shows
 a flat list of that category's articles, most recent first -- no region
@@ -8,12 +7,10 @@ sub-grouping (removed earlier; county/region tagging wasn't reliable
 enough to justify the extra visual layer -- see project history).
 Run: streamlit run app.py
 """
-
 import streamlit as st
 import streamlit.components.v1 as components
 from datetime import datetime, timedelta, timezone
 from src.db import get_conn, init_db
-
 MAX_ARTICLE_AGE_DAYS = 2
 SPORTS_MAX_ARTICLE_AGE_DAYS = 6   # Packers/Brewers/Bucks/Badgers/Local Sports
                                   # get a longer window -- dedicated official
@@ -23,10 +20,27 @@ SPORTS_MAX_ARTICLE_AGE_DAYS = 6   # Packers/Brewers/Bucks/Badgers/Local Sports
                                   # posts), so a strict 2-day cutoff was
                                   # starving out genuinely relevant, correctly
                                   # -fetched content from those feeds.
+EVENTS_MAX_ARTICLE_AGE_DAYS = 7   # Events previously had NO freshness cutoff
+                                  # at all (see load_articles below for why:
+                                  # published_at on an event reflects when
+                                  # the SOURCE added it to their calendar
+                                  # feed, not the event date itself, so
+                                  # applying a cutoff always risked hiding a
+                                  # genuinely upcoming event whose feed-add
+                                  # date is old). A 7-day cutoff was added
+                                  # anyway, as an explicit, accepted
+                                  # trade-off -- events display was
+                                  # otherwise accumulating stale entries
+                                  # indefinitely whenever a source's feed
+                                  # didn't promptly drop a past event on its
+                                  # own. If real upcoming events start
+                                  # disappearing under this cutoff, that's
+                                  # this trade-off surfacing, not a bug --
+                                  # revisit the cutoff length or exempt
+                                  # specific sources rather than reverting
+                                  # to no cutoff at all.
 SPORTS_CATEGORIES = {"packers", "brewers", "bucks", "badgers", "local_sports"}
-
 st.set_page_config(page_title="Bo6's News Aggregator", page_icon="📰", layout="wide")
-
 # ---------- Styling: white background, colorful accents ----------
 st.markdown(
     """
@@ -88,7 +102,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
 # Focus the page body on load so arrow keys / Tab / Page Down work
 # immediately without the user needing to click into the page first.
 # st.markdown's <script> tags don't reliably execute in the browser, so
@@ -114,7 +127,6 @@ components.html(
     """,
     height=0,
 )
-
 # Inject the iOS "Add to Home Screen" icon AND a custom home screen name.
 # st.set_page_config's page_icon/page_title only control the browser tab
 # favicon/title -- iOS Safari ignores both for the home screen and instead
@@ -136,8 +148,6 @@ st.markdown(
     '<meta name="apple-mobile-web-app-title" content="Bo6 News">',
     unsafe_allow_html=True,
 )
-
-
 @st.cache_data(ttl=300)
 def load_news_types():
     with get_conn() as conn:
@@ -148,8 +158,6 @@ def load_news_types():
         # a cached function returns, and sqlite3.Row doesn't pickle reliably
         # (this is what caused UnserializableReturnValueError on deploy).
         return [dict(r) for r in rows]
-
-
 @st.cache_data(ttl=300)
 def load_regions():
     with get_conn() as conn:
@@ -157,24 +165,23 @@ def load_regions():
             "SELECT slug, name, level, sort_order FROM regions ORDER BY sort_order"
         ).fetchall()
         return [dict(r) for r in rows]
-
-
 @st.cache_data(ttl=300)
 def load_articles(news_type_slug: str):
     # Only show articles published within the last MAX_ARTICLE_AGE_DAYS --
-    # EXCEPT for "events". Event calendar feeds (e.g. Shepherd Express) set
-    # their RSS pubDate to when the entry was added to their system, which
-    # can be weeks before the event itself happens. Applying the same
-    # "recently published" rule as news would make upcoming events vanish
-    # shortly after being added, even though they're still relevant. So
-    # events skip the freshness filter entirely and show everything
-    # currently in the feed; the source's own feed naturally drops events
-    # once they're past.
+    # EXCEPT that "events" uses its own EVENTS_MAX_ARTICLE_AGE_DAYS window
+    # instead. Event calendar feeds (e.g. Shepherd Express) set their RSS
+    # pubDate to when the entry was added to their system, which can be
+    # weeks before the event itself happens, so a strict news-style cutoff
+    # can hide a genuinely upcoming event. A 7-day cutoff is applied anyway
+    # as an accepted trade-off against stale entries accumulating
+    # indefinitely -- see EVENTS_MAX_ARTICLE_AGE_DAYS above for the full
+    # reasoning and what to do if this starts hiding real upcoming events.
     with get_conn() as conn:
         if news_type_slug == "events":
             # Exclude Ticketmaster concerts here -- they're rendered
             # separately in a compact expander (load_concerts below), not
             # as full article cards.
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=EVENTS_MAX_ARTICLE_AGE_DAYS)).isoformat()
             rows = conn.execute(
                 """
                 SELECT a.id, a.title, a.url, a.summary, a.image_url, a.published_at,
@@ -184,10 +191,11 @@ def load_articles(news_type_slug: str):
                 JOIN sources s ON s.id = a.source_id
                 LEFT JOIN article_regions ar ON ar.article_id = a.id
                 WHERE ant.news_type_slug = ? AND s.name != 'Ticketmaster - Wisconsin Concerts'
+                      AND a.published_at >= ?
                 ORDER BY a.published_at DESC
                 LIMIT 200
                 """,
-                (news_type_slug,),
+                (news_type_slug, cutoff),
             ).fetchall()
         else:
             max_age = SPORTS_MAX_ARTICLE_AGE_DAYS if news_type_slug in SPORTS_CATEGORIES else MAX_ARTICLE_AGE_DAYS
@@ -207,8 +215,6 @@ def load_articles(news_type_slug: str):
                 (news_type_slug, cutoff),
             ).fetchall()
         return [dict(r) for r in rows]
-
-
 @st.cache_data(ttl=300)
 def load_concerts():
     # Soonest-first (ASC), unlike news articles which sort newest-first --
@@ -226,11 +232,7 @@ def load_concerts():
             """
         ).fetchall()
         return [dict(r) for r in rows]
-
-
 CONCERTS_PER_PAGE = 50
-
-
 def render_concert_row(concert):
     date_display = concert["published_at"][:10] if concert["published_at"] else "TBA"
     st.markdown(
@@ -243,15 +245,11 @@ def render_concert_row(concert):
         """,
         unsafe_allow_html=True,
     )
-
-
 @st.cache_data(ttl=300)
 def load_joke():
     with get_conn() as conn:
         row = conn.execute("SELECT value FROM settings WHERE key = 'daily_joke'").fetchone()
         return row["value"] if row else None
-
-
 def render_article_card(article):
     cols = st.columns([1, 4]) if article["image_url"] else [st.container()]
     if article["image_url"]:
@@ -260,7 +258,6 @@ def render_article_card(article):
         body_col = cols[1]
     else:
         body_col = cols[0]
-
     with body_col:
         st.markdown(
             f"""
@@ -272,11 +269,8 @@ def render_article_card(article):
             """,
             unsafe_allow_html=True,
         )
-
-
 def main():
     init_db()
-
     title_col, joke_col = st.columns([3, 2])
     with title_col:
         st.title("📰 Bo6's News Aggregator")
@@ -287,18 +281,14 @@ def main():
                 f"<div style='padding-top:1.9rem; font-style:italic; color:#6B7280; font-size:0.95rem;'>😄 {joke}</div>",
                 unsafe_allow_html=True,
             )
-
     st.caption("Local news for Waukesha, Waukesha County, Milwaukee County & Wisconsin")
-
     news_types = load_news_types()
-
     if not news_types:
         st.warning(
             "No data yet. Run `python -m src.load_config` then `python -m src.ingest` "
             "to populate the database before launching the app."
         )
         return
-
     # Color-code each tab to match its category's color, pulled dynamically
     # from news_types (not hardcoded) so tab colors stay in sync if a
     # category's color is ever changed.
@@ -322,13 +312,10 @@ def main():
         for i, nt in enumerate(news_types)
     )
     st.markdown(f"<style>{tab_css_rules}</style>", unsafe_allow_html=True)
-
     tabs = st.tabs([nt["name"] for nt in news_types])
-
     for tab, nt in zip(tabs, news_types):
         with tab:
             articles = load_articles(nt["slug"])
-
             # Concerts render separately as compact rows in a collapsed
             # expander, only under Events -- checked before the "no
             # articles" early-out below, since concerts can have content
@@ -342,13 +329,11 @@ def main():
                     if "concert_page" not in st.session_state:
                         st.session_state.concert_page = 0
                     st.session_state.concert_page = min(st.session_state.concert_page, total_pages - 1)
-
                     with st.expander(f"🎵 {len(concerts)} upcoming Wisconsin concerts (Ticketmaster)"):
                         page = st.session_state.concert_page
                         start = page * CONCERTS_PER_PAGE
                         for concert in concerts[start:start + CONCERTS_PER_PAGE]:
                             render_concert_row(concert)
-
                         nav_prev, nav_label, nav_next = st.columns([1, 2, 1])
                         with nav_prev:
                             if st.button("◀ Previous", disabled=(page == 0), key="concert_prev"):
@@ -363,7 +348,6 @@ def main():
                             if st.button("Next ▶", disabled=(page >= total_pages - 1), key="concert_next"):
                                 st.session_state.concert_page += 1
                                 st.rerun()
-
             if not articles:
                 if nt["slug"] == "events":
                     if not has_concerts:
@@ -371,10 +355,7 @@ def main():
                 else:
                     st.caption("No articles yet for this section.")
                 continue
-
             for article in articles[:45]:
                 render_article_card(article)
-
-
 if __name__ == "__main__":
     main()
