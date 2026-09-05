@@ -1,0 +1,18 @@
+name: Keep Streamlit app awake
+on:
+  schedule:
+    - cron: "0 */4 * * *"   # every 4 hours -- comfortably under Streamlit
+                             # Community Cloud's 12-hour hibernation window
+  workflow_dispatch: {}     # allow manual trigger to test immediately
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping app
+        run: |
+          # -L follows redirects (Streamlit apps commonly redirect once on
+          # first load), -s silences progress output, -o /dev/null discards
+          # the body since we only care that the request was made, -w
+          # prints the HTTP status so it's visible in the Actions log for
+          # troubleshooting if this doesn't end up preventing hibernation.
+          curl -L -s -o /dev/null -w "HTTP status: %{http_code}\n" "https://bo6-local-news-aggregator.streamlit.app/"
