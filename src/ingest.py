@@ -118,7 +118,7 @@ WIRE_FALLBACK_NEWS_TYPE = "state"
 # schools sharing a headline is itself strong evidence of a prep
 # matchup. Revisit/expand this list as new collisions are found.
 PREP_SCHOOLS_TIER1 = [
-    "nicolet", "cedarburg", "pewaukee", "divine savior holy angels",
+    "arrowhead", "nicolet", "cedarburg", "pewaukee", "divine savior holy angels",
     "whitefish bay", "sussex hamilton", "menomonee falls",
     "new berlin eisenhower", "new berlin west", "waukesha north",
     "waukesha south", "wisconsin lutheran", "milwaukee lutheran",
@@ -131,7 +131,7 @@ PREP_SCHOOLS_TIER2 = [
 ]
 SPORTS_QUALIFIERS = [
     "score", "beat", "beats", "win", "wins", "won", "winners", "loses",
-    "lost", "vs.", "vs", "game", "tournament",
+    "lost", "vs.", "vs", "game", "tournament", "tops",
 ]
 
 
