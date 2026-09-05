@@ -10,9 +10,13 @@ jobs:
     steps:
       - name: Ping app
         run: |
-          # -L follows redirects (Streamlit apps commonly redirect once on
-          # first load), -s silences progress output, -o /dev/null discards
-          # the body since we only care that the request was made, -w
-          # prints the HTTP status so it's visible in the Actions log for
-          # troubleshooting if this doesn't end up preventing hibernation.
-          curl -L -s -o /dev/null -w "HTTP status: %{http_code}\n" "https://bo6-local-news-aggregator.streamlit.app/"
+          # No -L here deliberately: an earlier version followed redirects
+          # and hit curl's "too many redirects" error (exit 47), because
+          # Streamlit's session/cookie negotiation on this domain bounces
+          # a plain curl request in a redirect loop without a browser's
+          # cookie jar to carry state between hops. The redirect response
+          # itself (303) already means the request reached the app's
+          # origin and was logged there, which is what should matter for
+          # the hibernation check -- so we just record whatever status
+          # comes back without trying to follow it further.
+          curl -s -o /dev/null -w "HTTP status: %{http_code}\n" "https://bo6-local-news-aggregator.streamlit.app/"
