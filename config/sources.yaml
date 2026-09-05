@@ -96,7 +96,7 @@ sources:
     feed_url: "https://www.cbs58.com/rss"
     default_region: milwaukee-county
     default_news_types: [state]
-    sports_keyword: "Friday Night Rivals|high school&score,beat,beats,win,wins,won,winners,loses,lost,vs.,vs,game,tournament"
+    sports_keyword: "Friday Night Rivals|high school&score,beat,beats,win,wins,won,winners,loses,lost,vs.,vs,game,tournament,tops|hs&football,volleyball,soccer,basketball,wrestling,baseball,softball,tennis,golf,swimming,track,cross country,hockey,score,beat,beats,win,wins,won,winners,loses,lost,vs.,vs,game,tournament,tops"
     team_routing: true
     local_keyword: ["Waukesha", "Delafield", "Oconomowoc", "Sussex"]
     exclude_keywords: ["Associated Press", "CBS News"]
@@ -111,9 +111,14 @@ sources:
     # was false-positiving on non-sports stories that simply name a school
     # (e.g. a school-fire recovery story, a first-day-of-school tradition
     # story). Now it only counts as a sports match when a qualifier word
-    # is also present. PREP_SCHOOLS_TIER1/TIER2 in ingest.py supplement
-    # this with known school-name matching for prep recaps that never say
-    # "high school" at all.
+    # is also present. A separate "hs&<sport/qualifier words>" clause was
+    # added after CBS58's own nightly recap segment turned out to use the
+    # abbreviated form ("Thursday night HS football: Arrowhead tops
+    # Catholic Memorial 34-14") rather than the literal words "high
+    # school" -- confirmed live in the feed the night this was found to
+    # be under-matching real prep sports content. PREP_SCHOOLS_TIER1/
+    # TIER2 in ingest.py supplement both with known school-name matching
+    # for prep recaps that don't say "high school"/"HS" at all.
   - name: "Milwaukee Independent"
     base_url: "https://www.milwaukeeindependent.com/"
     feed_url: "https://www.milwaukeeindependent.com/feed/"
