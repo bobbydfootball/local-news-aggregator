@@ -237,37 +237,41 @@ sources:
     feed_url: "https://www.brewhoop.com/rss/current.xml"
     default_region: wisconsin
     default_news_types: [bucks]
-  # --- Badgers (all sports combined into one category) ---
-  - name: "Wisconsin Badgers Football (Official)"
-    base_url: "https://uwbadgers.com/sports/football"
-    feed_url: "https://uwbadgers.com/rss?path=football"
+  # --- Badgers (all UW Athletics sports combined into one category) ---
+  - name: "Wisconsin Badgers Athletics (Official) - All Sports"
+    base_url: "https://uwbadgers.com/"
+    feed_url: "https://uwbadgers.com/rss"
     default_region: wisconsin
     default_news_types: [badgers]
-  - name: "Wisconsin Badgers Men's Basketball (Official)"
-    base_url: "https://uwbadgers.com/sports/mens-basketball"
-    feed_url: "https://uwbadgers.com/rss?path=mbball"
-    default_region: wisconsin
-    default_news_types: [badgers]
-  - name: "Wisconsin Badgers Women's Basketball (Official)"
-    base_url: "https://uwbadgers.com/sports/womens-basketball"
-    feed_url: "https://uwbadgers.com/rss?path=wbball"
-    default_region: wisconsin
-    default_news_types: [badgers]
-  - name: "Wisconsin Badgers Men's Hockey (Official)"
-    base_url: "https://uwbadgers.com/sports/mens-ice-hockey"
-    feed_url: "https://uwbadgers.com/rss?path=mhockey"
-    default_region: wisconsin
-    default_news_types: [badgers]
-  - name: "Wisconsin Badgers Women's Hockey (Official)"
-    base_url: "https://uwbadgers.com/sports/womens-ice-hockey"
-    feed_url: "https://uwbadgers.com/rss?path=whockey"
-    default_region: wisconsin
-    default_news_types: [badgers]
-  - name: "Wisconsin Badgers Volleyball (Official)"
-    base_url: "https://uwbadgers.com/sports/womens-volleyball"
-    feed_url: "https://uwbadgers.com/rss?path=wvball"
-    default_region: wisconsin
-    default_news_types: [badgers]
+    # Deliberately unfiltered -- this is UW Athletics' combined feed across
+    # every sport they publish (football, both basketballs, both hockeys,
+    # volleyball, soccer, golf, cross country, wrestling, rowing, tennis,
+    # swimming), not just the six previously tracked individually. Scope
+    # was deliberately widened to "everything Badgers" rather than keeping
+    # a narrower six-sport filter.
+    #
+    # Replaces six separate per-sport feeds (uwbadgers.com/rss?path=X for
+    # football/mbball/wbball/mhockey/whockey/wvball). Football's dedicated
+    # feed (path=football) started 500ing as of early Sept 2026 -- confirmed
+    # the underlying content wasn't actually missing (uwbadgers.com/sports/
+    # football still published normally) and confirmed via direct testing
+    # that path=mbball/wbball/mhockey/whockey/wvball all still worked fine
+    # individually. This combined feed (no path param) is UW Athletics' own
+    # stable all-sports endpoint, not a workaround -- confirmed by fetching
+    # it directly, not just landing on it via a fallback from a bad path
+    # value. It includes football content (tagged <category>Football</category>,
+    # <s:sport_id>1</s:sport_id>) alongside every other sport, so this one
+    # feed is a real fix for football, not just a stopgap.
+    #
+    # Feed is capped at ~10 items regardless of any count/max/limit/n query
+    # param tried (all confirmed to return exactly 10) -- not a bug on our
+    # end, this appears to be a hard server-side cap. At UW Athletics'
+    # observed publishing rate (~10 items across all sports per ~2 days,
+    # i.e. under 5/day site-wide), this is not a practical coverage risk
+    # given the 30-minute ingest cadence and persistent article storage --
+    # an item would only be missed entirely if 10+ new stories published
+    # across every UW sport within a single 30-minute gap between runs,
+    # which is far outside the observed rate.
   # --- Events ---
   # No team_routing/local_keyword here either -- Events is a
   # specific-identity category, same reasoning as Politics above.
