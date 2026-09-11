@@ -90,6 +90,29 @@ sources:
     # prep/local content via the BLOX c=the_freeman/sports section filter.
     # team_routing still pulls out anything mentioning a specific WI team
     # (e.g. a Waukesha-area athlete signed by the Packers).
+  - name: "Lake Country Tribune - Local Section"
+    base_url: "https://lakecountrytribune.com/local/"
+    feed_url: "https://lakecountrytribune.com/category/local/feed/"
+    default_region: waukesha-city
+    default_news_types: [waukesha]
+    exclude_keywords: ["(The Center Square)"]
+    # Category feed tested clean (0% wire content across 30 entries), unlike
+    # the site-wide /feed/ (100% Center Square wire) -- deliberately using
+    # the category-scoped feed, not the site-wide one. exclude_keywords kept
+    # as insurance per policy above even though nothing currently trips it;
+    # if wire content ever appears here it'll reclassify to State rather
+    # than polluting Waukesha, same as Freeman.
+  - name: "Lake Country Tribune - Sports Section"
+    base_url: "https://lakecountrytribune.com/sports/"
+    feed_url: "https://lakecountrytribune.com/category/sports/feed/"
+    default_region: waukesha-city
+    default_news_types: [local_sports]
+    team_routing: true
+    exclude_keywords: ["(The Center Square)"]
+    # Same reasoning as Freeman Sports above -- fallback is Local Sports,
+    # not State, since the category feed is already reliably scoped
+    # (tested clean, 0% wire across 30 entries). team_routing still pulls
+    # out anything mentioning a specific WI team.
   # --- State (Milwaukee County news + general statewide interest) ---
   - name: "CBS58 Milwaukee"
     base_url: "https://www.cbs58.com/"
