@@ -5,6 +5,14 @@ color-coded to match the category's color from news_types. Each tab shows
 a flat list of that category's articles, most recent first -- no region
 sub-grouping (removed earlier; county/region tagging wasn't reliable
 enough to justify the extra visual layer -- see project history).
+
+Theme: follows each viewer's own device light/dark setting automatically
+-- no in-app selector. Streamlit's native widgets switch via the
+[theme.light] / [theme.dark] tables in .streamlit/config.toml; this app's
+own custom elements (cards, concert rows, joke, tab label colors) switch
+via CSS variables and a prefers-color-scheme media query -- see
+THEME_PALETTES and build_theme_css() below. Keep the two palettes in sync
+with config.toml if either is changed.
 Run: streamlit run app.py
 """
 import streamlit as st
@@ -40,12 +48,57 @@ EVENTS_MAX_ARTICLE_AGE_DAYS = 7   # Events previously had NO freshness cutoff
                                   # specific sources rather than reverting
                                   # to no cutoff at all.
 SPORTS_CATEGORIES = {"packers", "brewers", "bucks", "badgers", "local_sports"}
+
+# ---------- Theme (follows device setting) ----------
+#
+# No manual selector, deliberately: Streamlit has no API to change its
+# native theme at runtime, so a manual "Dark" choice on a light-mode
+# device would darken our custom cards while Streamlit's own widgets
+# stayed light. Following the device setting on both layers (config.toml
+# for native widgets, prefers-color-scheme here for custom elements)
+# keeps them in agreement, since both read the same OS/browser preference.
+#
+# These values mirror backgroundColor / secondaryBackgroundColor /
+# textColor in config.toml's [theme.light] and [theme.dark] tables.
+THEME_PALETTES = {
+    "light": {
+        "bg": "#FFFFFF",
+        "card-bg": "#FAFAFA",
+        "border": "#E5E7EB",
+        "text": "#111827",
+        "text-body": "#374151",
+        "text-muted": "#6B7280",
+    },
+    "dark": {
+        "bg": "#0F1117",
+        "card-bg": "#1A1D24",
+        "border": "#2D3139",
+        "text": "#F3F4F6",
+        "text-body": "#D1D5DB",
+        "text-muted": "#9CA3AF",
+    },
+}
+DARK_TAB_LIGHTEN_AMOUNT = 0.45   # several category colors (Brewers navy,
+                                 # World dark teal) are unreadable as text
+                                 # on a dark background as-is, so dark mode
+                                 # mixes each one toward white by this much.
+                                 # Computed from news_types, not hardcoded,
+                                 # so it stays in sync with taxonomy.yaml.
 st.set_page_config(page_title="Bo6's News Aggregator", page_icon="📰", layout="wide")
-# ---------- Styling: white background, colorful accents ----------
+# ---------- Styling: colors come from CSS variables set per theme ----------
 st.markdown(
     """
     <style>
-    .stApp { background-color: #FFFFFF; }
+    .stApp { background-color: var(--bg); color: var(--text); }
+    .stApp h1, .stApp h2, .stApp h3 { color: var(--text); }
+    .stApp [data-testid="stMarkdownContainer"] { color: var(--text); }
+    [data-testid="stCaptionContainer"],
+    [data-testid="stCaptionContainer"] p { color: var(--text-muted) !important; }
+    .stButton button {
+        background-color: var(--card-bg);
+        color: var(--text);
+        border-color: var(--border);
+    }
     .section-header {
         padding: 10px 16px;
         border-radius: 8px;
@@ -60,31 +113,32 @@ st.markdown(
         font-size: 1.05rem;
         margin-top: 0.75rem;
         margin-bottom: 0.5rem;
-        color: #374151;
+        color: var(--text-body);
     }
     .article-card {
-        border: 1px solid #E5E7EB;
+        border: 1px solid var(--border);
         border-radius: 10px;
         padding: 14px;
         margin-bottom: 12px;
-        background-color: #FAFAFA;
+        background-color: var(--card-bg);
     }
     .article-title {
         font-weight: 700;
         font-size: 1.02rem;
         margin-bottom: 4px;
     }
-    .article-title a { text-decoration: none; color: #111827; }
+    .article-title a { text-decoration: none; color: var(--text); }
     .article-title a:hover { text-decoration: underline; }
     .article-source {
         font-size: 0.8rem;
-        color: #6B7280;
+        color: var(--text-muted);
         margin-bottom: 6px;
     }
     .article-summary {
         font-size: 0.92rem;
-        color: #374151;
+        color: var(--text-body);
     }
+    .muted-text { color: var(--text-muted); }
     /* Hide the default Streamlit header bar (deploy button, menu, etc.) */
     header[data-testid="stHeader"] {
         display: none;
@@ -93,10 +147,15 @@ st.markdown(
        concerts dropdown) -- Streamlit doesn't expose font-size on expander
        labels directly, so this targets the underlying summary element.
        Covers a couple of selector variants for version compatibility. */
+    [data-testid="stExpander"] details {
+        background-color: var(--card-bg);
+        border-color: var(--border);
+    }
     [data-testid="stExpander"] summary,
     [data-testid="stExpander"] summary p {
         font-size: 1.3rem !important;
         font-weight: 700 !important;
+        color: var(--text) !important;
     }
     </style>
     """,
@@ -148,6 +207,42 @@ st.markdown(
     '<meta name="apple-mobile-web-app-title" content="Bo6 News">',
     unsafe_allow_html=True,
 )
+
+
+def lighten(hex_color: str, amount: float) -> str:
+    """Mix a #RRGGBB color toward white by `amount` (0..1). Returns the
+    input unchanged if it isn't a parseable 6-digit hex value."""
+    try:
+        h = hex_color.lstrip("#")
+        r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    except (ValueError, AttributeError):
+        return hex_color
+    r, g, b = (round(c + (255 - c) * amount) for c in (r, g, b))
+    return f"#{r:02X}{g:02X}{b:02X}"
+
+
+def build_theme_css(news_types) -> str:
+    """Return a <style> block setting the CSS variables: light values by
+    default, dark values under a prefers-color-scheme: dark media query.
+    Includes one --tab-N variable per category so tab label colors can be
+    lightened in dark mode."""
+    def vars_block(palette_name):
+        palette = THEME_PALETTES[palette_name]
+        lines = [f"--{k}: {v};" for k, v in palette.items()]
+        for i, nt in enumerate(news_types):
+            color = nt["color"]
+            if palette_name == "dark":
+                color = lighten(color, DARK_TAB_LIGHTEN_AMOUNT)
+            lines.append(f"--tab-{i + 1}: {color};")
+        return " ".join(lines)
+
+    css = (
+        f":root {{ {vars_block('light')} }} "
+        f"@media (prefers-color-scheme: dark) {{ :root {{ {vars_block('dark')} }} }}"
+    )
+    return f"<style>{css}</style>"
+
+
 @st.cache_data(ttl=300)
 def load_news_types():
     with get_conn() as conn:
@@ -237,10 +332,10 @@ def render_concert_row(concert):
     date_display = concert["published_at"][:10] if concert["published_at"] else "TBA"
     st.markdown(
         f"""
-        <div style="padding:6px 0; border-bottom:1px solid #E5E7EB; font-size:0.92rem;">
+        <div style="padding:6px 0; border-bottom:1px solid var(--border); font-size:0.92rem;">
             <strong>{date_display}</strong> ·
-            <a href="{concert['url']}" target="_blank" style="color:#111827; text-decoration:none; font-weight:600;">{concert['title']}</a>
-            <span style="color:#6B7280;"> — {concert['summary'] or ''}</span>
+            <a href="{concert['url']}" target="_blank" style="color:var(--text); text-decoration:none; font-weight:600;">{concert['title']}</a>
+            <span class="muted-text"> — {concert['summary'] or ''}</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -271,6 +366,8 @@ def render_article_card(article):
         )
 def main():
     init_db()
+    news_types = load_news_types()
+
     title_col, joke_col = st.columns([3, 2])
     with title_col:
         st.title("📰 Bo6's News Aggregator")
@@ -278,11 +375,13 @@ def main():
         joke = load_joke()
         if joke:
             st.markdown(
-                f"<div style='padding-top:1.9rem; font-style:italic; color:#6B7280; font-size:0.95rem;'>😄 {joke}</div>",
+                f"<div class='muted-text' style='padding-top:1.9rem; font-style:italic; font-size:0.95rem;'>😄 {joke}</div>",
                 unsafe_allow_html=True,
             )
+
     st.caption("Local news for Waukesha, Waukesha County, Milwaukee County & Wisconsin")
-    news_types = load_news_types()
+    st.markdown(build_theme_css(news_types), unsafe_allow_html=True)
+
     if not news_types:
         st.warning(
             "No data yet. Run `python -m src.load_config` then `python -m src.ingest` "
@@ -291,7 +390,9 @@ def main():
         return
     # Color-code each tab to match its category's color, pulled dynamically
     # from news_types (not hardcoded) so tab colors stay in sync if a
-    # category's color is ever changed.
+    # category's color is ever changed. The actual color value comes from
+    # the --tab-N CSS variable set by build_theme_css(), so dark mode can
+    # swap in a lightened version of each category color.
     #
     # Confirmed via direct browser inspection (right-click a tab -> Inspect)
     # that the current Streamlit version renders each tab as:
@@ -306,10 +407,10 @@ def main():
     # the markdown container may otherwise override inherited text color.
     tab_css_rules = "\n".join(
         f'[data-testid="stTab"]:nth-child({i + 1}) [data-testid="stMarkdownContainer"] p {{ '
-        f'color: {nt["color"]} !important; }}\n'
+        f'color: var(--tab-{i + 1}) !important; }}\n'
         f'[data-testid="stTab"]:nth-child({i + 1})[aria-selected="true"] {{ '
-        f'border-bottom-color: {nt["color"]} !important; }}'
-        for i, nt in enumerate(news_types)
+        f'border-bottom-color: var(--tab-{i + 1}) !important; }}'
+        for i in range(len(news_types))
     )
     st.markdown(f"<style>{tab_css_rules}</style>", unsafe_allow_html=True)
     tabs = st.tabs([nt["name"] for nt in news_types])
@@ -341,7 +442,7 @@ def main():
                                 st.rerun()
                         with nav_label:
                             st.markdown(
-                                f"<div style='text-align:center; padding-top:6px; color:#6B7280;'>Page {page + 1} of {total_pages}</div>",
+                                f"<div class='muted-text' style='text-align:center; padding-top:6px;'>Page {page + 1} of {total_pages}</div>",
                                 unsafe_allow_html=True,
                             )
                         with nav_next:
