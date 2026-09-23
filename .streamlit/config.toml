@@ -1,9 +1,21 @@
-[theme]
-base = "light"
+# No `base` here on purpose -- setting base = "light" (as before) forces
+# light mode for everyone. Without it, Streamlit picks [theme.light] or
+# [theme.dark] per viewer from their own device/browser setting.
+#
+# Keep these colors in sync with THEME_PALETTES in app.py, which styles
+# the app's custom elements (article cards, concert rows, etc.).
+
+[theme.light]
 backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#FAFAFA"
 textColor = "#111827"
 primaryColor = "#2563EB"
+
+[theme.dark]
+backgroundColor = "#0F1117"
+secondaryBackgroundColor = "#1A1D24"
+textColor = "#F3F4F6"
+primaryColor = "#60A5FA"
 
 [server]
 enableStaticServing = true
